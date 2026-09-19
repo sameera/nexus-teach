@@ -1,0 +1,60 @@
+{
+    "name": "@sameeraperera/nexus-teach",
+    "version": "0.1.0",
+    "description": "The teaching stage for Nexus: roadmap-driven lessons in a learner's workbook",
+    "license": "ISC",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/sameera/nexus-teach.git"
+    },
+    "bugs": {
+        "url": "https://github.com/sameera/nexus-teach/issues"
+    },
+    "homepage": "https://github.com/sameera/nexus-teach#readme",
+    "type": "module",
+    "bin": {
+        "nxsx": "dist/nxsx.mjs"
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
+    "packageManager": "pnpm@12.3.4",
+    "os": [
+        "darwin",
+        "linux"
+    ],
+    "engines": {
+        "node": ">=22.22.0"
+    },
+    "scripts": {
+        "build": "tsx src/pack-release.ts",
+        "pin": "tsx src/pin-fingerprint.ts",
+        "test": "vitest run",
+        "lint": "eslint .",
+        "typecheck": "tsc -b --pretty false",
+        "prepack": "pnpm build"
+    },
+    "dependencies": {
+        "yaml": "^2.9.0"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.8.0",
+        "@sameeraperera/nexus": "^0.61.0",
+        "@types/node": "^22.0.0",
+        "@vitest/coverage-v8": "~4.1.0",
+        "esbuild": "^0.28.1",
+        "eslint": "^9.8.0",
+        "eslint-config-prettier": "^10.0.0",
+        "jsdom": "^27.1.0",
+        "prettier": "~3.6.2",
+        "tsx": "^4.22.5",
+        "typescript": "~5.9.2",
+        "typescript-eslint": "^8.40.0",
+        "vitest": "~4.1.0"
+    }
+}

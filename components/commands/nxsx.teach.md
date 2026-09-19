@@ -31,7 +31,7 @@ The workbook's name.
 # The sitting
 
 ```bash
-nexus workbook teach <name>
+nxsx workbook teach <name>
 ```
 
 The session runs its own checks, then briefs you. Report each stop as it stands; never work around
@@ -52,7 +52,7 @@ machine blocks, hashes, label names, shell commands and Given / When / Then line
 When briefed, write the theory the brief asks for into a file and re-run:
 
 ```bash
-nexus workbook teach <name> --prose <file>
+nxsx workbook teach <name> --prose <file>
 ```
 
 Write only the theory the exercise needs, immediately before it. The brief names the concepts to

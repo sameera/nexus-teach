@@ -1,0 +1,10 @@
+node_modules/
+dist/
+out-tsc/
+test-output/
+coverage/
+*.tsbuildinfo
+vitest.config.*.timestamp*
+
+# local verification against an unpublished Nexus build (see CONTRIBUTING.md)
+*.tgz

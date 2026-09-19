@@ -1,6 +1,6 @@
 ---
 name: nxsx-workbook
-description: The workbook surface both teaching phases share — where a workbook lives, what the learner folder is and why nothing writes to it unguarded, and the nexus workbook verbs that resolve a roadmap, run the interview, render pages and teach one lesson. Load it from either phase; neither phase restates it.
+description: The workbook surface both teaching phases share — where a workbook lives, what the learner folder is and why nothing writes to it unguarded, and the nxsx workbook verbs that resolve a roadmap, run the interview, render pages and teach one lesson. Load it from either phase; neither phase restates it.
 ---
 
 # The workbook surface
@@ -22,20 +22,20 @@ phase reads the issue graph to learn what a story says.
 ## The verbs
 
 ```bash
-nexus workbook roadmap <name> --epic <n>       # resolve a roadmap from one epic issue
-nexus workbook roadmap <name> --query <expr>   # resolve one from a backlog query
-nexus workbook interview <name>                # the slate to ask from
-nexus workbook interview <name> --answers <f>  # record what the learner said
-nexus workbook extract <name>                  # the stories still to extract, as numbers
-nexus workbook vocabulary <name>               # every proposed concept identifier, for the merge
-nexus workbook draft <name> --merge <f>        # write the plan's stubs, all of them or none
-nexus workbook rewrite <name>                  # order the draft so each concept is taught once
-nexus workbook gate <name>                     # refuse an unclean draft, or print the approval gate
-nexus workbook gate <name> --approve           # write the committed plan the gate last printed
-nexus workbook render <name>                   # render every authored lesson to its page
-nexus workbook check <name>                    # report a page that drifted from its lesson
-nexus workbook teach <name> --prose <file>     # write and render one lesson
-nexus workbook pin <name> --epic <n> --sources <f>  # pin each learner slice's sources once the epic's record is approved
+nxsx workbook roadmap <name> --epic <n>       # resolve a roadmap from one epic issue
+nxsx workbook roadmap <name> --query <expr>   # resolve one from a backlog query
+nxsx workbook interview <name>                # the slate to ask from
+nxsx workbook interview <name> --answers <f>  # record what the learner said
+nxsx workbook extract <name>                  # the stories still to extract, as numbers
+nxsx workbook vocabulary <name>               # every proposed concept identifier, for the merge
+nxsx workbook draft <name> --merge <f>        # write the plan's stubs, all of them or none
+nxsx workbook rewrite <name>                  # order the draft so each concept is taught once
+nxsx workbook gate <name>                     # refuse an unclean draft, or print the approval gate
+nxsx workbook gate <name> --approve           # write the committed plan the gate last printed
+nxsx workbook render <name>                   # render every authored lesson to its page
+nxsx workbook check <name>                    # report a page that drifted from its lesson
+nxsx workbook teach <name> --prose <file>     # write and render one lesson
+nxsx workbook pin <name> --epic <n> --sources <f>  # pin each learner slice's sources once the epic's record is approved
 ```
 
 Add `--root <dir>` to point at another checkout, and `--repo <member>` to name the member repository

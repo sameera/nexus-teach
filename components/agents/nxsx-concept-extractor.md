@@ -13,7 +13,7 @@ name and a story number, and those are all you work from.
 # Read the story
 
 ```bash
-nexus workbook extract <name> --story <n>
+nxsx workbook extract <name> --story <n>
 ```
 
 This prints the one story you are reading. Read nothing else: no other story, no roadmap file, no
@@ -57,7 +57,7 @@ assumes:
 serves: true    # only when a focus came with the story
 reason: the story builds the ordering the learner said they came to learn    # likewise
 EOF
-nexus workbook extract <name> --story <n> --list .nexus/tmp/roadmap-<name>/extractions/<n>.proposed.yml
+nxsx workbook extract <name> --story <n> --list .nexus/tmp/roadmap-<name>/extractions/<n>.proposed.yml
 ```
 
 # Hand back

@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "importHelpers": false,
+    "isolatedModules": true,
+    "lib": ["es2022"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "es2022",
+    "baseUrl": ".",
+    "paths": {
+      "@nexus/delivery-config/*": ["./node_modules/@sameeraperera/nexus/dist/lib/delivery-config/*.ts"],
+      "@nexus/epic-resolve/*": ["./node_modules/@sameeraperera/nexus/dist/lib/epic-resolve/*.ts"],
+      "@nexus/record-digest/*": ["./node_modules/@sameeraperera/nexus/dist/lib/record-digest/*.ts"],
+      "@nexus/release-identity/*": ["./node_modules/@sameeraperera/nexus/dist/lib/release-identity/*.ts"],
+      "@nexus/workspace/*": ["./node_modules/@sameeraperera/nexus/dist/lib/workspace/*.ts"]
+    }
+  }
+}

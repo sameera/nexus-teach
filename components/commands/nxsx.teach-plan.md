@@ -38,13 +38,13 @@ roadmap.
 # Phase 1 — Resolve the roadmap
 
 ```bash
-nexus workbook roadmap <name> --epic <n>
+nxsx workbook roadmap <name> --epic <n>
 ```
 
 or, for a programme of epics:
 
 ```bash
-nexus workbook roadmap <name> --query "<expression>"
+nxsx workbook roadmap <name> --query "<expression>"
 ```
 
 Resolution is read-only on the issue graph and it validates every epic before anything else happens.
@@ -61,7 +61,7 @@ not read the roadmap file: it carries every story's text, which this session nev
 # Phase 2 — The interview
 
 ```bash
-nexus workbook interview <name>
+nxsx workbook interview <name>
 ```
 
 This prints the **slate**: the fixed set of slots the stage is able to ask from. Your contribution is
@@ -80,7 +80,7 @@ answers:
 ```
 
 ```bash
-nexus workbook interview <name> --answers <file>
+nxsx workbook interview <name> --answers <file>
 ```
 
 Record the learner's own words. Resolve nothing to a concept identifier — the concept vocabulary
@@ -99,7 +99,7 @@ once, by its own `nxsx-concept-extractor` subagent, and all that reaches you is 
 hands back.
 
 ```bash
-nexus workbook extract <name>
+nxsx workbook extract <name>
 ```
 
 This prints the story numbers still to extract — every story on a first run; on a re-run, only the
@@ -115,7 +115,7 @@ yourself.
 # Phase 4 — Merge the concept vocabulary
 
 ```bash
-nexus workbook vocabulary <name>
+nxsx workbook vocabulary <name>
 ```
 
 This prints every proposed identifier with its one-line glosses. Code has already settled spelling and
@@ -132,7 +132,7 @@ concepts:
 # Phase 5 — Write the draft
 
 ```bash
-nexus workbook draft <name> --merge <file>
+nxsx workbook draft <name> --merge <file>
 ```
 
 Code writes every stub in one step — story, mark, introduced concepts and assumed concepts — as an
@@ -156,7 +156,7 @@ edit the draft by hand, never commit it, and never write into the committed work
 # Phase 6 — Rewrite the draft
 
 ```bash
-nexus workbook rewrite <name> [--declare <file>]
+nxsx workbook rewrite <name> [--declare <file>]
 ```
 
 Code rewrites the draft it just wrote, as arithmetic over the stubs. It re-reads no story, so this
@@ -249,7 +249,7 @@ commit it.
 # Phase 7 — The approval gate
 
 ```bash
-nexus workbook gate <name>
+nxsx workbook gate <name>
 ```
 
 This is the one human checkpoint the plan passes through, and it covers the whole roadmap at once,
@@ -263,7 +263,7 @@ the reviewer **word for word**. Do not summarise it, reorder it or leave a line 
 so that nothing can be dropped. It carries no lesson prose and no sources, because neither is decided
 here. Then ask the reviewer, with `AskUserQuestion`, to approve, change marks, or decline.
 
-- **Change marks.** Run `nexus workbook gate <name> --mark <story>=learner` (or `=handoff`), or
+- **Change marks.** Run `nxsx workbook gate <name> --mark <story>=learner` (or `=handoff`), or
   `--clear <story>` to drop an earlier change. Code rebuilds the draft from the recorded judgements and
   prints the gate again; show the new print word for word and ask again. Only marks change here — the
   order, the splits and the scaffolds follow from them. A change that opens a gap prints the refusal
@@ -278,7 +278,7 @@ here. Then ask the reviewer, with `AskUserQuestion`, to approve, change marks, o
   ```
 
   ```bash
-  nexus workbook gate <name> --approve --commands <file>
+  nxsx workbook gate <name> --approve --commands <file>
   ```
 
   Approval checks coverage again, refuses a draft that changed after the gate was printed (print it
