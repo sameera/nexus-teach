@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { PLAN_FILENAME } from "./workbook-plan";
+import { WORKBOOK_STORE_PATH } from "./workbook-location";
 import { createWorkbook, lessonsDir, readLessons, readWorkbookPlan, workbookRoot, writtenLessonFiles } from "./workbook-store";
 
 let tmpDirs: string[] = [];
@@ -101,5 +102,60 @@ describe("a slice with no lesson yet is a stub the workbook skips", () => {
         fs.writeFileSync(path.join(workbookRoot(repo, "rdl"), PLAN_FILENAME), "lessons:\n  - b.md\n  - a.md\n");
 
         expect(readLessons(repo, "rdl").map((l) => l.file)).toEqual(["b.md", "a.md"]);
+    });
+});
+
+/**
+ * Where a workbook sits, relative to the other stores under the Nexus root.
+ *
+ * These moved here from the Nexus pipeline's own store-exclusion specs when the teaching stage left
+ * that repository (Nexus epic #677, goal #692). The exclusion itself is still checked there — a
+ * derived diff must withhold whatever a repository has put in the workbook directory — but the
+ * placement is this library's behaviour, and it is checked where the code that decides it lives.
+ */
+describe("a workbook is created as a committed folder outside the queue", () => {
+    function initRepo(): string {
+        const dir = makeDir();
+        execFileSync("git", ["init", "-q", "-b", "main"], { cwd: dir });
+        execFileSync("git", ["config", "user.email", "spec@example.com"], { cwd: dir });
+        execFileSync("git", ["config", "user.name", "spec"], { cwd: dir });
+        return dir;
+    }
+
+    it("puts the workbook in the store beside the queue, not inside it", () => {
+        const repo = initRepo();
+
+        const workbook = createWorkbook(repo, "roadmap-driven-learning");
+
+        expect(fs.existsSync(workbook.root)).toBe(true);
+        expect(workbook.relativePath).toBe(`${WORKBOOK_STORE_PATH}/roadmap-driven-learning`);
+        expect(workbook.relativePath.startsWith(".nexus/queue")).toBe(false);
+    });
+
+    it("leaves the workbook committable — git does not ignore it", () => {
+        const repo = initRepo();
+        const workbook = createWorkbook(repo, "roadmap-driven-learning");
+        const page = path.join(workbook.root, "lesson.html");
+        fs.mkdirSync(path.dirname(page), { recursive: true });
+        fs.writeFileSync(page, "<p>lesson</p>\n");
+
+        execFileSync("git", ["add", "-A"], { cwd: repo });
+        execFileSync("git", ["commit", "-q", "-m", "add workbook"], { cwd: repo });
+
+        const tracked = execFileSync("git", ["ls-files"], { cwd: repo, encoding: "utf8" }).split("\n");
+        expect(tracked).toContain(`${workbook.relativePath}/lesson.html`);
+    });
+
+    it("holds more than one workbook, because a repository may teach more than one roadmap", () => {
+        const repo = initRepo();
+
+        const first = createWorkbook(repo, "one");
+        const second = createWorkbook(repo, "two");
+        const again = createWorkbook(repo, "one");
+
+        expect(first.created).toBe(true);
+        expect(second.created).toBe(true);
+        expect(again.created).toBe(false);
+        expect(fs.readdirSync(path.join(repo, WORKBOOK_STORE_PATH)).sort()).toEqual(["one", "two"]);
     });
 });
