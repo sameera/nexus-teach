@@ -2,6 +2,7 @@
 title: "Teaching Plan"
 aliases: ["plan of slices", "slice", "pinned story state", "declared suite command", "grading command", "control test", "handoff slice", "lesson stub", "committed plan", "dependency edges", "per-slice epic"]
 touches: ["workbook-store", "teaching-session", "plan-drift-gate", "just-in-time-lesson", "return-verification", "handoff-prompt", "plan-draft", "scaffold-slice", "slice-identity", "plan-approval-gate", "plan-field-ownership", "plan-re-approval", "workbook-home-page", "pinned-sources"]
+domain: "roadmap-planning"
 last_updated_by: "#691"
 status: active
 verification: verified

@@ -2,6 +2,7 @@
 title: "Just-In-Time Lesson"
 aliases: ["written on arrival", "lesson written when the learner arrives", "arrival", "exercise half", "revisit a hinted concept", "one lesson ahead", "pinning test written on arrival"]
 touches: ["teaching-session", "teaching-plan", "cold-drill", "lesson-renderer", "learner-folder", "slice-identity", "plan-field-ownership"]
+domain: "teaching-sessions"
 last_updated_by: "#691"
 status: active
 verification: verified

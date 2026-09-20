@@ -2,6 +2,7 @@
 title: "Workbook Store"
 aliases: ["workbook", "workbook folder", "lessons folder", "teaching plan", "workbook placement"]
 touches: ["learner-folder", "lesson-renderer", "teaching-plan", "workbook-home-page", "reference-page"]
+domain: "workbook-rendering/store"
 last_updated_by: "#691"
 status: active
 verification: verified

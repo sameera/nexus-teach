@@ -2,6 +2,7 @@
 title: "Parsons Problem"
 aliases: ["parsons problem", "shuffle guard", "line reordering exercise", "earlier later buttons"]
 touches: ["answer-check", "component-refusal"]
+domain: "interactive-exercises"
 last_updated_by: "#691"
 status: active
 verification: verified

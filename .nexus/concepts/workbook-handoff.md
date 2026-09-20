@@ -2,6 +2,7 @@
 title: "Workbook Handoff"
 aliases: ["handoff record", "paused workbook", "resume at the handed-off story", "outstanding handoff", "verified resolution", "manual override"]
 touches: ["learner-folder", "workbook-store", "teaching-session", "handoff-prompt", "return-verification"]
+domain: "teaching-sessions"
 last_updated_by: "#691"
 status: active
 verification: verified

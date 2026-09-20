@@ -2,6 +2,7 @@
 title: "Plan Drift Gate"
 aliases: ["drift check", "pinned versus live", "re-scoped story", "unverifiable story", "drift report", "closed story stops its lesson"]
 touches: ["teaching-plan", "teaching-session", "plan-re-approval"]
+domain: "teaching-sessions"
 last_updated_by: "#691"
 status: active
 verification: verified

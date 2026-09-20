@@ -28,11 +28,27 @@ is somewhere else and a dead edge reads as though the interaction lapsed. It did
 pages keeps a retired forwarding entry in the Nexus store, so the relationship is findable from that
 side. The arrival entry in each page's decision log says which edge it lost and why.
 
+## Where a page files
+
+Every page declares one `domain:` in its front matter, and that path must resolve against the
+curated registry at [`docs/domains.md`](../../docs/domains.md) — four domains, some with one level
+of subdomains, carrying the same four names as the features in `docs/features/`. The atlas renders
+that structure directly, in registry order.
+
+The registry was authored when the stage became its own project. Before it, grouping fell back to
+link density, and on a store this densely linked that collapses: all 35 pages landed under one
+heading named after whichever page had the most edges. The heading looked like a category and was
+an accident of connectivity.
+
+Filing is orientation metadata, not knowledge. Changing only a page's `domain:` is a re-file and
+needs no decision-log entry — the one edit to a concept page that the distiller is not the sole
+producer of.
+
 ## Validate
 
 This repository is a Nexus adopter, so the pipeline's own verbs check this store:
 
 ```bash
 nexus validate-concepts
-nexus check-atlas
+nexus generate-atlas --check
 ```

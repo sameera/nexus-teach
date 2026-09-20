@@ -2,6 +2,7 @@
 title: "Component Refusal"
 aliases: ["declaration refusal", "code field", "codeFields", "checkable exercise refusal"]
 touches: ["widget-seam", "answer-check", "parsons-problem", "trace-stepper", "lesson-renderer"]
+domain: "interactive-exercises"
 last_updated_by: "#691"
 status: active
 verification: verified

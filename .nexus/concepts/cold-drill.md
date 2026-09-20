@@ -2,6 +2,7 @@
 title: "Cold Drill"
 aliases: ["spaced recall", "opening drill", "concept history", "hint ranking", "overdue concept", "eligible concept"]
 touches: ["teaching-session", "just-in-time-lesson", "learner-folder", "widget-seam", "reference-page"]
+domain: "teaching-sessions"
 last_updated_by: "#691"
 status: active
 verification: verified

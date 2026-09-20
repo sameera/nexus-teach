@@ -2,6 +2,7 @@
 title: "Concept Vocabulary Merge"
 aliases: ["one identifier per concept", "synonym merge", "proposed identifier", "concept gloss", "merged vocabulary", "folded-away name"]
 touches: ["story-concept-extraction", "plan-draft", "prior-knowledge-declaration"]
+domain: "roadmap-planning/extraction"
 last_updated_by: "#691"
 status: active
 verification: verified

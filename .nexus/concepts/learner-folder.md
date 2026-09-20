@@ -2,6 +2,7 @@
 title: "Learner Folder"
 aliases: ["learner store", "personal records", "one ignore rule", "learner ignore guard", "per-learner state"]
 touches: ["workbook-store", "workbook-handoff", "lesson-renderer", "cold-drill", "just-in-time-lesson", "handoff-prompt", "focus-marking"]
+domain: "workbook-rendering/store"
 last_updated_by: "#691"
 status: active
 verification: verified

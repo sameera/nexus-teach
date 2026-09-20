@@ -2,6 +2,7 @@
 title: "Answer Check"
 aliases: ["checkable answer", "answer checking", "spacing rule", "reveal after check", "fill-the-signature"]
 touches: ["component-refusal", "parsons-problem", "trace-stepper"]
+domain: "interactive-exercises"
 last_updated_by: "#691"
 status: active
 verification: verified

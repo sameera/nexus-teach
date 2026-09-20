@@ -2,6 +2,7 @@
 title: "Scaffold Slice"
 aliases: ["scaffold", "teaching step", "slice with no story", "storyless slice", "scaffold restraint", "forced need", "background concept"]
 touches: ["plan-rewrite", "plan-draft", "coverage-check", "teaching-plan", "slice-identity"]
+domain: "roadmap-planning/ordering"
 last_updated_by: "#691"
 status: active
 verification: verified

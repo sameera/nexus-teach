@@ -2,6 +2,7 @@
 title: "Widget Seam"
 aliases: ["widget declaration", "component library", "inert widget", "interactive exercise", "widget manifest", "predict-then-reveal", "lead region", "always-visible region"]
 touches: ["lesson-renderer", "offline-page", "cold-drill", "component-refusal"]
+domain: "interactive-exercises"
 last_updated_by: "#691"
 status: active
 verification: verified
