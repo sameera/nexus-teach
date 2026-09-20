@@ -179,6 +179,48 @@ describe("a member nobody has planned yet", () => {
     });
 });
 
+describe("one order over planned and unplanned members alike", () => {
+    const STUB: UnplannedSeed = { number: 500, title: "Epsilon", body: "Not planned yet." };
+    /** #100's first story waits on #500, which nobody has planned: the one edge read at member level. */
+    const WAITING: ResolvedEpic = resolvedEpic(100, "Alpha", [
+        { number: 11, title: "First", body: "Waits on work nobody has planned.", blockedBy: [500] },
+    ]);
+
+    it("covers every member, of either kind", () => {
+        const roadmap: Roadmap = ok(resolveRoadmap(resolverOver({ 100: ALPHA, 200: BETA }, { 500: STUB }), [100, 200, 500]));
+        expect([...roadmap.members].map((m) => m.number).sort((a, b) => a - b)).toEqual([100, 200, 500]);
+    });
+
+    it("puts an unplanned member before the planned work that waits on it", () => {
+        const roadmap: Roadmap = ok(resolveRoadmap(resolverOver({ 100: WAITING, 200: BETA }, { 500: STUB }), [100, 200, 500]));
+        expect(roadmap.members.map((m) => m.number)).toEqual([500, 100, 200]);
+    });
+
+    it("leaves an unplanned member nobody waits on at its own number's position", () => {
+        const roadmap: Roadmap = ok(resolveRoadmap(resolverOver({ 100: ALPHA, 200: BETA }, { 150: { number: 150, title: "Eta", body: "Later." } }), [100, 150, 200]));
+        expect(roadmap.members.map((m) => m.number)).toEqual([100, 150, 200]);
+    });
+
+    it("gives the same members in the same order when the graph has not changed", () => {
+        const first = ok(resolveRoadmap(resolverOver({ 100: WAITING, 200: BETA }, { 500: STUB }), [100, 200, 500]));
+        const again = ok(resolveRoadmap(resolverOver({ 100: WAITING, 200: BETA }, { 500: STUB }), [500, 200, 100]));
+        expect(again.members).toEqual(first.members);
+    });
+
+    it("keeps the story order the teaching order, untouched by where a member sits", () => {
+        const roadmap: Roadmap = ok(resolveRoadmap(resolverOver({ 100: WAITING, 200: BETA }, { 500: STUB }), [100, 200, 500]));
+        expect(roadmap.stories.map((s) => s.number)).toEqual([11, 21, 22]);
+        // The edge onto the unplanned member stays where it was: outside the roadmap's story set.
+        expect(roadmap.stories[0].external).toEqual([500]);
+        expect(roadmap.stories[0].blockedBy).toEqual([]);
+    });
+
+    it("leaves a roadmap of only planned members in ascending number order, as before", () => {
+        const roadmap: Roadmap = ok(resolveRoadmap(resolverOver({ 100: ALPHA, 200: BETA }), [200, 100]));
+        expect(roadmap.members.map((m) => m.number)).toEqual([100, 200]);
+    });
+});
+
 describe("edges onto work that is not on the roadmap", () => {
     const WITH_OUTSIDE: ResolvedEpic = resolvedEpic(300, "Gamma", [
         { number: 31, title: "Needs elsewhere", body: "Depends on work nobody here builds.", blockedBy: [999] },

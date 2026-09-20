@@ -84,7 +84,7 @@ export interface RoadmapMember {
 export interface Roadmap {
     /** The roadmap's name, which is also the workbook slug the interview is keyed on. */
     name: string;
-    /** The epic issues it was resolved from, planned and unplanned alike, in ascending order. */
+    /** The epic issues it was resolved from, planned and unplanned alike, in one order over both. */
     members: RoadmapMember[];
     /** Every story of every planned member, in one dependency-respecting order across all of them. */
     stories: RoadmapStory[];
@@ -197,13 +197,59 @@ export function resolveRoadmap(resolve: MemberResolver, issues: readonly number[
     return {
         ok: true,
         roadmap: {
-            // The name comes off the first member whatever kind it is, because a roadmap whose
-            // first member is unplanned still has to be named something the learner typed or can read.
+            // The name comes off the lowest-numbered member whatever kind it is, because a roadmap
+            // whose only members are unplanned still has to be named something the learner can read.
+            // It is taken before the member order is applied: the name is the workbook's identity,
+            // and pulling a member ahead of the work waiting on it must not rename the workbook.
             name: opts.name ?? nameFromTitle(members[0].title, wanted[0]),
-            members,
+            members: orderMembers(members, ordered.stories),
             stories: ordered.stories,
         },
     };
+}
+
+/**
+ * One order over every member, planned and unplanned alike, so the point where planned work runs
+ * out is a position in it rather than a guess.
+ *
+ * The order is ascending issue number, with one exception: a member that planned work waits on is
+ * pulled ahead of the member waiting. Only edges with an unplanned member at one end are read, and
+ * they are read off blockers this stage has already fetched — a planned story blocked by an
+ * unplanned member's issue number. An unplanned member has no stories, so a member-level edge is
+ * the only way to place it at all; two planned members already have their relationship expressed
+ * story by story, and a coarse edge between them would flatten that finer order and could
+ * contradict it. Restricting the rule this way is also what keeps a roadmap of fully planned
+ * members in exactly the order it had before, and what makes a member-level cycle impossible: every
+ * edge runs from an unplanned member to a planned one, and no edge ever runs into an unplanned one.
+ *
+ * This is not a teaching order and nothing derives one from it. The story order stays that.
+ */
+function orderMembers(members: readonly RoadmapMember[], stories: readonly RoadmapStory[]): RoadmapMember[] {
+    const unplanned: Set<number> = new Set(members.filter((m) => m.kind === "unplanned").map((m) => m.number));
+    const waitsOn: Map<number, Set<number>> = new Map(members.map((m) => [m.number, new Set<number>()]));
+    for (const story of stories) {
+        for (const blocker of story.external) {
+            if (unplanned.has(blocker)) (waitsOn.get(story.epic) as Set<number>).add(blocker);
+        }
+    }
+
+    const byNumber: Map<number, RoadmapMember> = new Map(members.map((m) => [m.number, m]));
+    const ascending: RoadmapMember[] = [...members].sort((a, b) => a.number - b.number);
+    const placed: Set<number> = new Set();
+    const ordered: RoadmapMember[] = [];
+    for (const member of ascending) {
+        if (placed.has(member.number)) continue;
+        // One pass over the blockers is the whole rule: what a member waits on is always unplanned,
+        // and an unplanned member waits on nothing, so there is never a chain to follow.
+        for (const blocker of [...(waitsOn.get(member.number) as Set<number>)].sort((a, b) => a - b)) {
+            if (placed.has(blocker)) continue;
+            ordered.push(byNumber.get(blocker) as RoadmapMember);
+            placed.add(blocker);
+        }
+        ordered.push(member);
+        placed.add(member.number);
+    }
+    return ordered;
 }
 
 type OrderResult = { ok: true; stories: RoadmapStory[] } | { ok: false; error: RoadmapProblem };
