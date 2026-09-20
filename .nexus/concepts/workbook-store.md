@@ -1,9 +1,9 @@
 ---
 title: "Workbook Store"
 aliases: ["workbook", "workbook folder", "lessons folder", "teaching plan", "workbook placement"]
-touches: ["learner-folder", "lesson-renderer", "teaching-plan", "workbook-home-page", "reference-page"]
+touches: ["learner-folder", "lesson-renderer", "teaching-plan", "workbook-home-page", "reference-page", "roadmap-resolution"]
 domain: "workbook-rendering/store"
-last_updated_by: "#691"
+last_updated_by: "#64"
 status: active
 verification: verified
 ---
@@ -33,6 +33,7 @@ The store is created on first use and holds one folder per workbook. Inside a wo
 - [teaching-plan](teaching-plan.md) — the plan of slices this store holds, which makes an unwritten lesson a stub rather than a mismatch.
 - [workbook-home-page](workbook-home-page.md) — the page written at the workbook's root beside the lesson pages, from the plan this store holds.
 - [reference-page](reference-page.md) — the authored prose of reference pages, one file per concept, in its own folder beside the lessons and never named in the plan.
+- [roadmap-resolution](roadmap-resolution.md) — creates the workbook once a roadmap resolves, and gives it the slug the roadmap took from its lowest-numbered member.
 
 ## Decision Log
 
@@ -55,3 +56,7 @@ Mechanical reciprocity fan-out: a workbook now holds a folder of authored refere
 ### 2026-09-19 — #691 — Moved here from the Nexus repository
 
 The teaching stage now ships as a package of its own, and this page came with it, decision log and all. What changed on arrival is the edges this page can declare: an edge names a page in the same store, and pipeline-store-exclusion, workspace-resolution stayed behind. Those interactions did not stop — the stage still reads what those pages describe — but a store cannot hold an edge whose other end is in another repository, and a dead edge reads as though the interaction lapsed. The page each one named keeps a retired forwarding entry there, so the relationship is still findable from that side.
+
+### 2026-09-20 — #64 — Reciprocal link from roadmap-resolution
+
+A workbook is still created only after its roadmap resolves, and it still takes its slug from the roadmap's name. That name now comes off the lowest-numbered member whichever kind it is, so a roadmap whose first member is an epic nobody has planned yet still names a workbook. The store's layout and placement rules are unchanged.

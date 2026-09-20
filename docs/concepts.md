@@ -4,7 +4,7 @@
 
 # Concept Atlas
 
-Orientation map of the concept store — 35 active concepts. Each links to its full page
+Orientation map of the concept store — 37 active concepts. Each links to its full page
 (behavior, invariants, decision history); code locations live in the matching
 `.nexus/anchors/<slug>.md` sidecar.
 
@@ -39,6 +39,8 @@ Orientation map of the concept store — 35 active concepts. Each links to its f
 
 ## Roadmap Planning
 
+- [Roadmap Members](../.nexus/concepts/roadmap-members.md) — A resolved roadmap holds one ordered list of members, and a member is either an epic that has been planned or an epic nobody has planned yet.
+- [Roadmap Resolution](../.nexus/concepts/roadmap-resolution.md) — A roadmap is resolved from a list of issue numbers, or from one search that names them, into the members it holds.
 - [Teaching Plan](../.nexus/concepts/teaching-plan.md) — One file describes everything a workbook teaches from: the order of the slices, what each one builds, whether the learner builds it or a coding agent does, and everything the session needs to teach it.
 
 ### Concept Extraction
