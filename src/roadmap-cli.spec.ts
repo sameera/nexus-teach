@@ -46,9 +46,28 @@ interface FakeEpic {
     labels?: string[];
 }
 
-/** Answers the shared resolver's `gh` calls for one epic, and nothing else. */
-function ghRunner(epic: FakeEpic, stories: FakeStory[], calls: string[][] = []): Runner {
-    const byNumber = new Map(stories.map((s) => [s.number, s]));
+/**
+ * One issue on the fake graph, carrying whatever of it the resolver and the expansion step read.
+ *
+ * `labels` is what both the issue view and the classification query report, so a fake epic carries
+ * its epic marker here and a fake story carries its story one — the same marker the real graph
+ * would carry, rather than one synthesised per call site.
+ */
+interface FakeIssue {
+    number: number;
+    title: string;
+    body?: string;
+    labels?: string[];
+    /** The sub-issue numbers GitHub returns for it, in its own order rather than a sorted one. */
+    children?: number[];
+    /** The issue this one is a sub-issue of — what a `not-an-epic` refusal names it beneath. */
+    parent?: number;
+    blockedBy?: number[];
+}
+
+/** Answers every `gh` call the shared resolver and the expansion step make, over one fake graph. */
+function graphRunner(issues: FakeIssue[], calls: string[][] = []): Runner {
+    const byNumber = new Map(issues.map((i) => [i.number, i]));
     return (cmd: string, args: string[]): RunResult => {
         calls.push([cmd, ...args]);
         const ok = (stdout: string): RunResult => ({ status: 0, stdout, stderr: "" });
@@ -57,32 +76,36 @@ function ghRunner(epic: FakeEpic, stories: FakeStory[], calls: string[][] = []):
         if (cmd !== "gh") return fail(`unexpected command ${cmd}`);
         if (args[0] === "repo" && args[1] === "view") return ok("acme/app\n");
         if (args[0] === "issue" && args[1] === "view") {
-            const n: number = Number(args[2]);
-            if (n === epic.number) {
-                const labels = (epic.labels ?? []).map((name) => ({ name }));
-                return ok(JSON.stringify({ number: n, title: epic.title, body: epic.body ?? "", state: "OPEN", stateReason: "", labels }));
-            }
-            const story: FakeStory | undefined = byNumber.get(n);
-            if (story === undefined) return fail(`not found: #${n}`);
-            return ok(JSON.stringify({ number: n, title: story.title, body: story.body, state: "OPEN", stateReason: "", labels: [] }));
+            const issue: FakeIssue | undefined = byNumber.get(Number(args[2]));
+            if (issue === undefined) return fail(`not found: #${args[2]}`);
+            return ok(
+                JSON.stringify({
+                    number: issue.number,
+                    title: issue.title,
+                    body: issue.body ?? "",
+                    state: "OPEN",
+                    stateReason: "",
+                    labels: (issue.labels ?? []).map((name) => ({ name })),
+                }),
+            );
         }
         if (args[0] === "api" && args[1] === "graphql") {
             const query: string = args.find((a) => a.startsWith("query=")) ?? "";
+            const n: number = Number((args.find((a) => a.startsWith("num=")) ?? "num=0").slice(4));
+            const issue: FakeIssue | undefined = byNumber.get(n);
             // The combined facts query — matched before the bare parent query it contains.
             if (query.includes("parent{number} issueType{name}")) {
-                const n = Number((args.find((a) => a.startsWith("num=")) ?? "num=0").slice(4));
-                const labels: string[] = n === epic.number ? ["epic", ...(epic.labels ?? [])] : byNumber.has(n) ? ["story"] : [];
-                if (n !== epic.number && !byNumber.has(n)) return ok(JSON.stringify({ data: { repository: { issue: null } } }));
+                if (issue === undefined) return ok(JSON.stringify({ data: { repository: { issue: null } } }));
                 return ok(
                     JSON.stringify({
                         data: {
                             repository: {
                                 issue: {
-                                    parent: n === epic.number ? null : { number: epic.number },
+                                    parent: issue.parent === undefined ? null : { number: issue.parent },
                                     issueType: null,
                                     state: "OPEN",
                                     stateReason: null,
-                                    labels: { nodes: labels.map((name) => ({ name })) },
+                                    labels: { nodes: (issue.labels ?? []).map((name) => ({ name })) },
                                 },
                             },
                         },
@@ -91,7 +114,10 @@ function ghRunner(epic: FakeEpic, stories: FakeStory[], calls: string[][] = []):
             }
             if (query.includes("parent{number}")) return ok("");
             if (query.includes("issueType{name}")) return ok("");
-            return ok(stories.map((s) => s.number).join("\n") + "\n");
+            // What is left is the sub-issue list, already `--jq`'d down to one number per line.
+            if (issue === undefined) return fail(`Could not resolve to an Issue with the number ${n}.`);
+            const children: number[] = issue.children ?? [];
+            return ok(children.length === 0 ? "" : children.join("\n") + "\n");
         }
         if (args[0] === "api" && String(args[1]).includes("dependencies/blocked_by")) {
             const match: RegExpExecArray | null = /issues\/(\d+)\/dependencies/.exec(String(args[1]));
@@ -101,6 +127,30 @@ function ghRunner(epic: FakeEpic, stories: FakeStory[], calls: string[][] = []):
         }
         return fail(`unexpected gh call: ${args.join(" ")}`);
     };
+}
+
+/** The same graph for the single-epic cases: one epic, its stories, and nothing above it. */
+function ghRunner(epic: FakeEpic, stories: FakeStory[], calls: string[][] = []): Runner {
+    return graphRunner(
+        [
+            {
+                number: epic.number,
+                title: epic.title,
+                body: epic.body,
+                labels: ["epic", ...(epic.labels ?? [])],
+                children: stories.map((s) => s.number),
+            },
+            ...stories.map((s) => ({
+                number: s.number,
+                title: s.title,
+                body: s.body,
+                labels: ["story"],
+                parent: epic.number,
+                blockedBy: s.blockedBy,
+            })),
+        ],
+        calls,
+    );
 }
 
 const STORIES: FakeStory[] = [
@@ -195,6 +245,125 @@ describe("a learner resolves a roadmap from an epic nobody has planned yet", () 
         const repo: string = initRepo();
         runWorkbookCli(["roadmap", "--epic", "500"], makeIo(repo), ghRunner(STUB, []));
         expect(readRoadmap(repo, "epsilon")?.members[0].kind).toBe("unplanned");
+    });
+});
+
+describe("a learner resolves a roadmap from an initiative", () => {
+    /**
+     * An initiative above a planned epic and an epic nobody has planned yet.
+     *
+     * The initiative carries no marker of its own, because nothing in this repository classifies an
+     * issue as one (record #82, invariant 3), and its children come back in GitHub's order rather
+     * than a sorted one, so the order a roadmap holds them in is resolution's and not the graph's.
+     */
+    const INITIATIVE: FakeIssue[] = [
+        { number: 900, title: "Ship the thing", children: [500, 100] },
+        { number: 100, title: "Alpha", labels: ["epic"], parent: 900, children: [11, 12] },
+        { number: 11, title: "First", body: "Do the first thing.", labels: ["story"], parent: 100 },
+        { number: 12, title: "Second", body: "Do the second thing.", labels: ["story"], parent: 100, blockedBy: [11] },
+        {
+            number: 500,
+            title: "Epsilon",
+            body: "What nobody has planned yet.",
+            labels: ["epic", "needs-refinement"],
+            parent: 900,
+        },
+    ];
+
+    it("holds one member for each child, planned and unplanned alike", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        const code: number = runWorkbookCli(["roadmap", "--initiative", "900"], io, graphRunner(INITIATIVE));
+        expect(code).toBe(0);
+        const roadmap: Roadmap | null = readRoadmap(repo, "ship-the-thing");
+        expect(roadmap?.members.map((m) => m.number)).toEqual([100, 500]);
+        expect(roadmap?.stories.map((s) => s.number)).toEqual([11, 12]);
+    });
+
+    it("states each member's kind, and carries an unplanned one's body", () => {
+        const repo: string = initRepo();
+        runWorkbookCli(["roadmap", "--initiative", "900"], makeIo(repo), graphRunner(INITIATIVE));
+        const members = readRoadmap(repo, "ship-the-thing")?.members ?? [];
+        expect(members.map((m) => m.kind)).toEqual(["planned", "unplanned"]);
+        expect(members[1].body).toBe("What nobody has planned yet.");
+    });
+
+    it("holds the same members, of the same kinds, as naming those children directly", () => {
+        const initiativeRepo: string = initRepo();
+        runWorkbookCli(["roadmap", "--initiative", "900"], makeIo(initiativeRepo), graphRunner(INITIATIVE));
+
+        const directRepo: string = initRepo();
+        const graph: Runner = graphRunner(INITIATIVE);
+        const named: Runner = (cmd, args, opts) => {
+            if (args[0] === "search") {
+                const rows = [100, 500].map((number) => ({ number, repository: { nameWithOwner: "acme/app" } }));
+                return { status: 0, stdout: JSON.stringify(rows), stderr: "" };
+            }
+            return graph(cmd, args, opts);
+        };
+        expect(runWorkbookCli(["roadmap", "direct", "--query", "label:teaching"], makeIo(directRepo), named)).toBe(0);
+
+        const fromInitiative = readRoadmap(initiativeRepo, "ship-the-thing")?.members;
+        const fromChildren = readRoadmap(directRepo, "direct")?.members;
+        expect(fromInitiative).toEqual(fromChildren);
+    });
+
+    it("holds the same members in the same order when the graph has not changed", () => {
+        const first: string = initRepo();
+        const again: string = initRepo();
+        runWorkbookCli(["roadmap", "--initiative", "900"], makeIo(first), graphRunner(INITIATIVE));
+        runWorkbookCli(["roadmap", "--initiative", "900"], makeIo(again), graphRunner(INITIATIVE));
+        expect(readRoadmap(first, "ship-the-thing")).toEqual(readRoadmap(again, "ship-the-thing"));
+    });
+
+    it("names the roadmap from the initiative's own title, not from its lowest-numbered child", () => {
+        const repo: string = initRepo();
+        runWorkbookCli(["roadmap", "--initiative", "900"], makeIo(repo), graphRunner(INITIATIVE));
+        expect(readRoadmap(repo, "ship-the-thing")).not.toBeNull();
+        expect(readRoadmap(repo, "alpha")).toBeNull();
+    });
+
+    it("takes the name the learner gave it when they gave one, and never reads the initiative's title", () => {
+        const repo: string = initRepo();
+        const calls: string[][] = [];
+        expect(runWorkbookCli(["roadmap", "my-roadmap", "--initiative", "900"], makeIo(repo), graphRunner(INITIATIVE, calls))).toBe(0);
+        expect(readRoadmap(repo, "my-roadmap")).not.toBeNull();
+        expect(calls.some((c) => c[1] === "issue" && c[2] === "view" && c[3] === "900")).toBe(false);
+    });
+
+    it("reads the initiative's children as sub-issues, in one call, before any child is read", () => {
+        const repo: string = initRepo();
+        const calls: string[][] = [];
+        runWorkbookCli(["roadmap", "--initiative", "900"], makeIo(repo), graphRunner(INITIATIVE, calls));
+        const children: number = calls.filter((c) => c.includes("num=900") && c.some((t) => t.startsWith("query=") && t.includes("subIssues"))).length;
+        expect(children).toBe(1);
+        const readChildren: number = calls.findIndex((c) => c.includes("num=900") && c.some((t) => t.startsWith("query=") && t.includes("subIssues")));
+        const readAChild: number = calls.findIndex((c) => c.some((t) => t === "num=100" || t === "num=500"));
+        expect(readChildren).toBeGreaterThanOrEqual(0);
+        expect(readChildren).toBeLessThan(readAChild);
+    });
+
+    it("leaves an epic issue number resolving exactly as it does today", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        expect(runWorkbookCli(["roadmap", "--epic", "100"], io, graphRunner(INITIATIVE))).toBe(0);
+        const roadmap: Roadmap | null = readRoadmap(repo, "alpha");
+        expect(roadmap?.members.map((m) => m.number)).toEqual([100]);
+        expect(roadmap?.stories.map((s) => s.number)).toEqual([11, 12]);
+    });
+
+    it("needs exactly one of an epic, an initiative and a query", () => {
+        const repo: string = initRepo();
+        const graph: Runner = graphRunner(INITIATIVE);
+        expect(runWorkbookCli(["roadmap", "--epic", "100", "--initiative", "900"], makeIo(repo), graph)).toBe(2);
+        expect(runWorkbookCli(["roadmap", "x", "--initiative", "900", "--query", "label:t"], makeIo(repo), graph)).toBe(2);
+    });
+
+    it("takes an issue number and nothing else", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        expect(runWorkbookCli(["roadmap", "--initiative", "not-a-number"], io, graphRunner(INITIATIVE))).toBe(2);
+        expect(io.err.join("\n")).toContain("issue number");
     });
 });
 

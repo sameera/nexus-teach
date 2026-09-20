@@ -34,6 +34,7 @@ import * as path from "node:path";
 import { type RunResult, type Runner } from "@nexus/workspace/run";
 import { backlogQuery } from "@nexus/delivery-config/backlog";
 import { layersAt } from "@nexus/delivery-config/resolve";
+import { fetchSubIssueNumbers, resolveRepoSlug } from "@nexus/epic-resolve/gh";
 import { type ResolvedEpic } from "@nexus/epic-resolve/resolve";
 import { MATERIALIZED_DIR } from "@nexus/epic-resolve/write";
 
@@ -344,6 +345,37 @@ export function readRoadmap(repoRoot: string, name: string): Roadmap | null {
     const target: string = roadmapPath(repoRoot, name);
     if (!fs.existsSync(target)) return null;
     return JSON.parse(fs.readFileSync(target, "utf8")) as Roadmap;
+}
+
+/**
+ * The epics beneath one initiative.
+ *
+ * An initiative is an issue whose children are exactly the epics of a body of work, so naming one
+ * says what listing those children says, without the lead copying a list the issue graph already
+ * holds. What comes back is a plain set of numbers — the same shape of input the epic-number path
+ * and the query path already hand to resolution (record #82, invariant 1). Nothing downstream
+ * learns an initiative was involved, so the member cap, the member order, the naming rule and every
+ * refusal a roadmap already has reach these numbers with no second copy of any of them.
+ *
+ * The children are read as sub-issues and nowhere else, in one call, and nothing about a child
+ * beyond its issue number is read here (invariants 2 and 7). What each child *is* — a planned epic,
+ * an epic nobody has planned yet, or a refusal — stays the shared resolver's answer, given per
+ * child at resolution, so this step owns no classification rule at all.
+ *
+ * The numbers are returned in GitHub's own order, because deduplicating and sorting them is what
+ * resolution already does to every set it is given; doing it here too would be a second copy of
+ * that rule, and the one inside resolution is what the order actually comes from.
+ */
+export function epicsFromInitiative(
+    run: Runner,
+    repoRoot: string,
+    initiative: number,
+): { ok: true; epics: number[] } | { ok: false; error: RoadmapProblem } {
+    const slug = resolveRepoSlug(run, repoRoot);
+    if (!slug.ok) return { ok: false, error: slug.error };
+    const children = fetchSubIssueNumbers(run, repoRoot, slug.slug, initiative);
+    if (!children.ok) return { ok: false, error: children.error };
+    return { ok: true, epics: children.numbers };
 }
 
 export interface BacklogQueryOptions {
