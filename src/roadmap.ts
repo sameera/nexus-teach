@@ -37,8 +37,19 @@ import { layersAt } from "@nexus/delivery-config/resolve";
 import { type ResolvedEpic } from "@nexus/epic-resolve/resolve";
 import { MATERIALIZED_DIR } from "@nexus/epic-resolve/write";
 
-/** The most epics one roadmap may hold, refused before any fetch begins (invariant 13). */
-export const ROADMAP_EPIC_CAP: number = 10;
+/**
+ * The most epics one roadmap may hold, refused before any fetch begins (invariant 13).
+ *
+ * The check counts an unplanned member the same as a planned one. That is forced rather than
+ * chosen: it runs on the set of named numbers before anything is fetched, so at that point nothing
+ * is known about what any of them is — which is the whole point of refusing there.
+ *
+ * The number is sized for the cheap kind of member. A planned epic costs dozens of issue-graph
+ * calls; an epic nobody has planned yet costs two, and a real initiative tail is mostly the second
+ * kind. A fully planned roadmap of this many members is a long resolution, and that is the accepted
+ * cost of leaving that tail room.
+ */
+export const ROADMAP_EPIC_CAP: number = 25;
 
 /** One story of the roadmap, carrying everything a later phase would otherwise re-fetch. */
 export interface RoadmapStory {
@@ -335,23 +346,42 @@ export function readRoadmap(repoRoot: string, name: string): Roadmap | null {
     return JSON.parse(fs.readFileSync(target, "utf8")) as Roadmap;
 }
 
+export interface BacklogQueryOptions {
+    /**
+     * Whether unplanned epics are kept out of the result. On unless the caller says otherwise.
+     *
+     * The exclusion is correct for every query that enumerates epics for planned work and wrong
+     * only where a roadmap is being resolved to teach from, so the safe default keeps every present
+     * and future caller right by construction. Off means the exclusion term is simply not composed
+     * — never that the query is inverted to match unplanned epics only, which would silently drop
+     * the planned half of a roadmap named by one search.
+     */
+    excludeUnplanned?: boolean;
+}
+
 /**
  * The epics a backlog query returns.
  *
- * The learner supplies a search expression; the stage composes it with the repository's configured
- * stub-exclusion form before running it (invariant 12). Every query enumerating epics for planned
- * work carries that negation, and the repository already exposes it, so a repository that renames
- * the label renames this query too. Composing it also means an under-specified expression cannot
- * pull an unplanned stub into a roadmap and trip the epic-stub refusal further down.
+ * The learner supplies a search expression; unless the caller asks otherwise, the stage composes it
+ * with the repository's configured exclusion form before running it (invariant 12). The repository
+ * already exposes that form, so a repository that renames the label renames this query too, and no
+ * call site spells it out.
  *
  * The expression is passed as an argument vector after `--`, never assembled into a shell string:
- * the exclusion form begins with a hyphen, and a learner's expression is untrusted input.
+ * the exclusion form begins with a hyphen, and a learner's expression is untrusted input. That
+ * holds with or without the exclusion term.
  */
-export function epicsFromQuery(run: Runner, repoRoot: string, expression: string): { ok: true; epics: number[] } | { ok: false; error: RoadmapProblem } {
-    const exclusion: string = backlogQuery(layersAt(repoRoot), "exclude");
+export function epicsFromQuery(
+    run: Runner,
+    repoRoot: string,
+    expression: string,
+    opts: BacklogQueryOptions = {},
+): { ok: true; epics: number[] } | { ok: false; error: RoadmapProblem } {
+    const terms: string[] = [expression];
+    if (opts.excludeUnplanned ?? true) terms.push(backlogQuery(layersAt(repoRoot), "exclude"));
     const result: RunResult = run(
         "gh",
-        ["search", "issues", "--json", "number,repository", "--limit", String(ROADMAP_EPIC_CAP + 1), "--", expression, exclusion],
+        ["search", "issues", "--json", "number,repository", "--limit", String(ROADMAP_EPIC_CAP + 1), "--", ...terms],
         { cwd: repoRoot },
     );
     if (result.status !== 0) {

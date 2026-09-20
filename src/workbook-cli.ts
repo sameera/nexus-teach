@@ -426,7 +426,10 @@ function runRoadmap(repoRoot: string, name: string | undefined, flags: Flags, io
         }
         epics = [epic];
     } else {
-        const found = epicsFromQuery(run, root, flags.query as string);
+        // A roadmap to teach from always wants the unplanned tail of the initiative in it, so the
+        // exclusion is dropped here and nowhere else, with no flag for a lead to set. A lead who
+        // wants a planned-only roadmap names the issues instead of searching for them.
+        const found = epicsFromQuery(run, root, flags.query as string, { excludeUnplanned: false });
         if (!found.ok) return reportRoadmapProblem(found.error, io);
         epics = found.epics;
     }
