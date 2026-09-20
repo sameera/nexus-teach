@@ -38,7 +38,7 @@ import { type ResolvedEpic } from "@nexus/epic-resolve/resolve";
 import { MATERIALIZED_DIR } from "@nexus/epic-resolve/write";
 
 /**
- * The most epics one roadmap may hold, refused before any fetch begins (invariant 13).
+ * The most epics one roadmap may hold, refused before any fetch begins (record #75, invariant 4).
  *
  * The check counts an unplanned member the same as a planned one. That is forced rather than
  * chosen: it runs on the set of named numbers before anything is fetched, so at that point nothing
@@ -363,9 +363,9 @@ export interface BacklogQueryOptions {
  * The epics a backlog query returns.
  *
  * The learner supplies a search expression; unless the caller asks otherwise, the stage composes it
- * with the repository's configured exclusion form before running it (invariant 12). The repository
- * already exposes that form, so a repository that renames the label renames this query too, and no
- * call site spells it out.
+ * with the repository's configured exclusion form before running it (record #75, invariant 2). The
+ * repository already exposes that form, so a repository that renames the label renames this query
+ * too, and no call site spells it out.
  *
  * The expression is passed as an argument vector after `--`, never assembled into a shell string:
  * the exclusion form begins with a hyphen, and a learner's expression is untrusted input. That
@@ -418,8 +418,9 @@ export function epicsFromQuery(
     if (epics.length > ROADMAP_EPIC_CAP) {
         // The search is asked for one row past the cap and no more, so what came back is a floor
         // rather than a total: a query matching fifty epics is indistinguishable here from one
-        // matching eleven. Saying "more than ten" is the whole of what was established; naming a
-        // count would be reporting the fetch limit back to the learner as if it were their result.
+        // matching a single epic past the cap. That the cap was exceeded is the whole of what was
+        // established; naming a count would be reporting the fetch limit back to the learner as if
+        // it were their result.
         return {
             ok: false,
             error: {
