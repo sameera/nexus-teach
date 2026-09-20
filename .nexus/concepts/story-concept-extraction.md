@@ -1,9 +1,9 @@
 ---
 title: "Story Concept Extraction"
 aliases: ["per-story extraction", "extraction unit", "checked concept list", "concepts a story introduces", "concepts a story assumes", "no readable list"]
-touches: ["concept-vocabulary-merge", "plan-draft", "focus-marking", "coverage-check"]
+touches: ["concept-vocabulary-merge", "plan-draft", "focus-marking", "coverage-check", "roadmap-members"]
 domain: "roadmap-planning/extraction"
-last_updated_by: "#691"
+last_updated_by: "#64"
 status: active
 verification: verified
 ---
@@ -36,6 +36,7 @@ A story with no readable list stops the pass rather than being left out of it, b
 - [plan-draft](plan-draft.md) — the one write these lists feed, which needs a readable list for every story before it writes anything.
 - [focus-marking](focus-marking.md) — the verdict a unit returns from this same single read, which decides its slice's mark.
 - [coverage-check](coverage-check.md) — reads a handed-off story's checked list to name that story behind a coverage gap.
+- [roadmap-members](roadmap-members.md) — the list this reads its stories from; a member nobody has planned yet contributes none, so nothing is extracted for it.
 
 ## Decision Log
 
@@ -50,3 +51,7 @@ A handed-off stub carries no concepts, so a handed-off story's checked list is t
 ### 2026-09-19 — #691 — Moved here from the Nexus repository
 
 The teaching stage now ships as a package of its own, and this page came with it, decision log and all. Nothing it asserts changed; the store it is asserted in did. The Nexus repository keeps a retired forwarding entry under this slug, so a reader who greps the old name is told where the page went rather than finding nothing.
+
+### 2026-09-20 — #64 — Reciprocal link from roadmap-members
+
+A roadmap now holds epics nobody has planned yet, and such a member has no stories. This pass reads the stories planned members contribute and is handed nothing by an unplanned one. Nothing about how a story is read, checked or kept changed.

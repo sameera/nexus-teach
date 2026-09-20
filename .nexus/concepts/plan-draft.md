@@ -1,9 +1,9 @@
 ---
 title: "Plan Draft"
 aliases: ["plan stub", "uncommitted draft", "draft of slices", "stub contract", "assumed concepts", "several slices per story", "draft verdict"]
-touches: ["teaching-plan", "story-concept-extraction", "concept-vocabulary-merge", "focus-marking", "plan-rewrite", "prior-knowledge-declaration", "scaffold-slice", "coverage-check", "plan-approval-gate"]
+touches: ["teaching-plan", "story-concept-extraction", "concept-vocabulary-merge", "focus-marking", "plan-rewrite", "prior-knowledge-declaration", "scaffold-slice", "coverage-check", "plan-approval-gate", "roadmap-members"]
 domain: "roadmap-planning/ordering"
-last_updated_by: "#691"
+last_updated_by: "#64"
 status: active
 verification: verified
 ---
@@ -39,6 +39,7 @@ The stub uses the shipped plan's own names for the story, the mark and the intro
 - [scaffold-slice](scaffold-slice.md) — the slice with no story, which only this draft admits.
 - [coverage-check](coverage-check.md) — the verdict this draft carries beside its slices.
 - [plan-approval-gate](plan-approval-gate.md) — the checkpoint that prints this draft, refuses it when its coverage is not clean, and turns it into the committed plan.
+- [roadmap-members](roadmap-members.md) — the resolved list the draft is written beside; its slices come from the stories planned members contribute.
 
 ## Decision Log
 
@@ -57,3 +58,7 @@ Approval was expected to consume the draft. It does not: the draft stays where i
 ### 2026-09-19 — #691 — Moved here from the Nexus repository
 
 The teaching stage now ships as a package of its own, and this page came with it, decision log and all. Nothing it asserts changed; the store it is asserted in did. The Nexus repository keeps a retired forwarding entry under this slug, so a reader who greps the old name is told where the page went rather than finding nothing.
+
+### 2026-09-20 — #64 — Reciprocal link from roadmap-members
+
+The list the draft is written beside now holds two kinds of member, and only the planned kind contributes stories. A draft over a roadmap with an unplanned tail therefore covers the planned half of it. What a stub may carry and where the draft is written are unchanged.
