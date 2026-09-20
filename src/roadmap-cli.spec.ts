@@ -265,7 +265,7 @@ describe("a backlog query naming several epics", () => {
 
     it("refuses a query returning more epics than the cap, by name", () => {
         const repo: string = initRepo();
-        const rows = Array.from({ length: 11 }, (_, i) => ({ number: 100 + i, repo: "acme/app" }));
+        const rows = Array.from({ length: ROADMAP_EPIC_CAP + 1 }, (_, i) => ({ number: 100 + i, repo: "acme/app" }));
         const result = epicsFromQuery(searchRunner(rows, []), repo, "label:teaching");
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.error.problem).toBe("roadmap-too-many-epics");
@@ -287,6 +287,21 @@ describe("a backlog query naming several epics", () => {
         }
     });
 
+    it("drops the exclusion when the caller asks for unplanned epics, without inverting the query", () => {
+        const repo: string = initRepo();
+        const calls: string[][] = [];
+        const result = epicsFromQuery(searchRunner([{ number: 100, repo: "acme/app" }], calls), repo, "label:teaching", {
+            excludeUnplanned: false,
+        });
+        expect(result.ok).toBe(true);
+        const vector: string[] = calls[0];
+        expect(vector).toContain("label:teaching");
+        // Not composed, and not replaced by its positive: a query matching only unplanned epics
+        // would silently drop the planned half of a roadmap named by one search.
+        expect(vector.some((token) => token.startsWith("-label:"))).toBe(false);
+        expect(vector.filter((token) => token.startsWith("label:"))).toEqual(["label:teaching"]);
+    });
+
     it("refuses a query whose epics span more than one repository, by name", () => {
         const repo: string = initRepo();
         const result = epicsFromQuery(searchRunner([{ number: 100, repo: "acme/app" }, { number: 200, repo: "acme/other" }], []), repo, "label:teaching");
@@ -295,6 +310,23 @@ describe("a backlog query naming several epics", () => {
             expect(result.error.problem).toBe("roadmap-multi-repo");
             expect(result.error.message).toContain("acme/other");
         }
+    });
+
+    it("asks the teach-from query for unplanned epics too, so a growing roadmap needs no list of issues", () => {
+        const repo: string = initRepo();
+        const calls: string[][] = [];
+        const graph: Runner = ghRunner({ number: 100, title: "Alpha" }, STORIES);
+        const search: Runner = (cmd, args, opts) => {
+            calls.push([cmd, ...args]);
+            if (args[0] === "search") {
+                return { status: 0, stdout: JSON.stringify([{ number: 100, repository: { nameWithOwner: "acme/app" } }]), stderr: "" };
+            }
+            return graph(cmd, args, opts);
+        };
+        expect(runWorkbookCli(["roadmap", "alpha", "--query", "label:teaching"], makeIo(repo), search)).toBe(0);
+        const vector: string[] = calls[0];
+        expect(vector).toContain("label:teaching");
+        expect(vector.some((token) => token.startsWith("-label:"))).toBe(false);
     });
 
     it("makes the learner name a query-resolved roadmap", () => {
