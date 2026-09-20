@@ -463,6 +463,90 @@ describe("a child of the initiative that is not an epic of either kind", () => {
     });
 });
 
+describe("an initiative with more children than a roadmap may hold", () => {
+    /**
+     * An initiative over `count` children: the first a planned epic with a story, the rest epics
+     * nobody has planned yet. Both kinds are present so the cap is provably counting them alike —
+     * it runs before anything is fetched, so at that point it cannot know which is which.
+     */
+    function initiativeOver(count: number): FakeIssue[] {
+        const children: number[] = Array.from({ length: count }, (_, i) => 1000 + i);
+        return [
+            { number: 900, title: "Ship the thing", children },
+            { number: 1000, title: "Alpha", labels: ["epic"], parent: 900, children: [11] },
+            { number: 11, title: "First", body: "Do the first thing.", labels: ["story"], parent: 1000 },
+            ...children.slice(1).map((number) => ({
+                number,
+                title: `Epic ${number}`,
+                body: "Later.",
+                labels: ["epic", "needs-refinement"],
+                parent: 900,
+            })),
+        ];
+    }
+    const childNumbers: number[] = Array.from({ length: ROADMAP_EPIC_CAP + 1 }, (_, i) => 1000 + i);
+    /** Whether any `gh` call named a child — an issue view, a classification query, or an edge read. */
+    function readAnyChild(calls: string[][]): boolean {
+        return calls.some((call) =>
+            childNumbers.some(
+                (n) => call.includes(String(n)) || call.includes(`num=${n}`) || call.some((token) => token.includes(`/issues/${n}/`)),
+            ),
+        );
+    }
+
+    it("is refused, and not one of those children is read", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        const calls: string[][] = [];
+        expect(runWorkbookCli(["roadmap", "--initiative", "900"], io, graphRunner(initiativeOver(ROADMAP_EPIC_CAP + 1), calls))).toBe(1);
+        expect(io.err.join("\n")).toContain("roadmap-too-many-epics");
+        expect(readAnyChild(calls)).toBe(false);
+        expect(readRoadmap(repo, "ship-the-thing")).toBeNull();
+    });
+
+    it("says how many members a roadmap holds and that the set must be narrowed", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        runWorkbookCli(["roadmap", "--initiative", "900"], io, graphRunner(initiativeOver(ROADMAP_EPIC_CAP + 1)));
+        const said: string = io.err.join("\n");
+        expect(said).toContain(String(ROADMAP_EPIC_CAP));
+        expect(said).toContain("narrow the set before re-running");
+    });
+
+    it("refuses under the same name a roadmap already caps a named or queried set by", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        runWorkbookCli(["roadmap", "--initiative", "900"], io, graphRunner(initiativeOver(ROADMAP_EPIC_CAP + 1)));
+        // The same diagnostic the query path raises, so the repository has one cap rule and not two.
+        expect(io.err.join("\n").startsWith("roadmap-too-many-epics:")).toBe(true);
+    });
+
+    it("resolves every child of an initiative holding exactly as many as a roadmap may", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        const calls: string[][] = [];
+        expect(runWorkbookCli(["roadmap", "--initiative", "900"], io, graphRunner(initiativeOver(ROADMAP_EPIC_CAP), calls))).toBe(0);
+        const roadmap: Roadmap | null = readRoadmap(repo, "ship-the-thing");
+        expect(roadmap?.members).toHaveLength(ROADMAP_EPIC_CAP);
+        expect(roadmap?.members.map((m) => m.number)).toEqual(Array.from({ length: ROADMAP_EPIC_CAP }, (_, i) => 1000 + i));
+        // Which is also what proves the refusal above: a run that is not refused does read them.
+        expect(readAnyChild(calls)).toBe(true);
+    });
+
+    it("counts an epic nobody has planned yet the same as a planned one", () => {
+        // Only one child of either set is a planned epic, so a cap that counted planned members
+        // alone would let both sets through. The larger one is refused, and the smaller resolves
+        // with every unplanned child held as a member.
+        const under: string = initRepo();
+        expect(runWorkbookCli(["roadmap", "--initiative", "900"], makeIo(under), graphRunner(initiativeOver(ROADMAP_EPIC_CAP)))).toBe(0);
+        const kinds: string[] = (readRoadmap(under, "ship-the-thing")?.members ?? []).map((m) => m.kind);
+        expect(kinds.filter((k) => k === "unplanned")).toHaveLength(ROADMAP_EPIC_CAP - 1);
+
+        const over: string = initRepo();
+        expect(runWorkbookCli(["roadmap", "--initiative", "900"], makeIo(over), graphRunner(initiativeOver(ROADMAP_EPIC_CAP + 1)))).toBe(1);
+    });
+});
+
 describe("a number that names something other than an epic", () => {
     it("stops, says why that number cannot be a roadmap, and makes no workbook", () => {
         const repo: string = initRepo();

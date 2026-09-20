@@ -372,7 +372,18 @@ export function readRoadmap(repoRoot: string, name: string): Roadmap | null {
  *
  * The numbers are returned in GitHub's own order, because deduplicating and sorting them is what
  * resolution already does to every set it is given; doing it here too would be a second copy of
- * that rule, and the one inside resolution is what the order actually comes from.
+ * that rule, and the one inside resolution is what the order actually comes from. The member cap
+ * is the same: resolution already checks it once the numbers are known and before any of them is
+ * fetched, which is exactly where an oversized initiative has to be refused, and it already counts
+ * an unplanned child the same as a planned one because at that point it knows neither. A cap here
+ * would be a second number that has to agree with that one (invariant 5).
+ *
+ * The one thing the shared query is not is cap-aware: it asks for a fixed page of sub-issues rather
+ * than one row past the cap, the way the backlog query deliberately does. An initiative with more
+ * children than that page holds is still refused, and still for the right reason, because it also
+ * exceeds the cap — what would be wrong is the count the refusal reports, which would understate
+ * how many children there really are. That imprecision is accepted rather than bought back with a
+ * second, cap-aware read.
  *
  * An initiative with nothing beneath it is the one refusal this step owns (invariant 6). Resolution
  * already refuses an empty set, but it refuses it as "no epic was named" — worded for a lead who
