@@ -367,6 +367,50 @@ describe("a learner resolves a roadmap from an initiative", () => {
     });
 });
 
+describe("an initiative with nothing beneath it", () => {
+    const BARE: FakeIssue[] = [{ number: 900, title: "Ship the thing" }];
+
+    it("is refused, and no roadmap is written", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        expect(runWorkbookCli(["roadmap", "--initiative", "900"], io, graphRunner(BARE))).toBe(1);
+        expect(readRoadmap(repo, "ship-the-thing")).toBeNull();
+        expect(fs.existsSync(path.join(repo, ".nexus", "workbook"))).toBe(false);
+    });
+
+    it("names the initiative and says it has nothing beneath it", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        runWorkbookCli(["roadmap", "--initiative", "900"], io, graphRunner(BARE));
+        const said: string = io.err.join("\n");
+        expect(said).toContain("roadmap-initiative-empty");
+        expect(said).toContain("#900");
+        expect(said).toContain("nothing beneath it");
+    });
+
+    it("refuses under its own name, not the one a roadmap already uses for an empty set", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        runWorkbookCli(["roadmap", "--initiative", "900"], io, graphRunner(BARE));
+        // `roadmap-empty` is worded for a lead who named nothing at all, which is the wrong
+        // problem to describe to one who named an issue that simply has no children.
+        expect(io.err.join("\n")).not.toContain("roadmap-empty:");
+    });
+
+    it("resolves an initiative whose children are every one of them unplanned", () => {
+        const repo: string = initRepo();
+        const stubs: FakeIssue[] = [
+            { number: 900, title: "Ship the thing", children: [500, 501] },
+            { number: 500, title: "Epsilon", body: "Later.", labels: ["epic", "needs-refinement"], parent: 900 },
+            { number: 501, title: "Zeta", body: "Later still.", labels: ["epic", "needs-refinement"], parent: 900 },
+        ];
+        expect(runWorkbookCli(["roadmap", "--initiative", "900"], makeIo(repo), graphRunner(stubs))).toBe(0);
+        const roadmap: Roadmap | null = readRoadmap(repo, "ship-the-thing");
+        expect(roadmap?.members.map((m) => m.number)).toEqual([500, 501]);
+        expect(roadmap?.members.map((m) => m.kind)).toEqual(["unplanned", "unplanned"]);
+    });
+});
+
 describe("a number that names something other than an epic", () => {
     it("stops, says why that number cannot be a roadmap, and makes no workbook", () => {
         const repo: string = initRepo();

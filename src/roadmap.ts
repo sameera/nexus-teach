@@ -365,6 +365,16 @@ export function readRoadmap(repoRoot: string, name: string): Roadmap | null {
  * The numbers are returned in GitHub's own order, because deduplicating and sorting them is what
  * resolution already does to every set it is given; doing it here too would be a second copy of
  * that rule, and the one inside resolution is what the order actually comes from.
+ *
+ * An initiative with nothing beneath it is the one refusal this step owns (invariant 6). Resolution
+ * already refuses an empty set, but it refuses it as "no epic was named" — worded for a lead who
+ * named nothing or wrote a query matching nothing. That describes the wrong problem to a lead who
+ * did name something: an issue that simply has no children. So the refusal is a diagnostic of its
+ * own, raised before resolution is called, naming the initiative the lead gave.
+ *
+ * It cannot check that the number is filed as an initiative, because nothing classifies one. A lead
+ * who names a story or a record number usually reaches this same refusal, which is why it says what
+ * was found beneath the number rather than only that the initiative is empty.
  */
 export function epicsFromInitiative(
     run: Runner,
@@ -375,6 +385,18 @@ export function epicsFromInitiative(
     if (!slug.ok) return { ok: false, error: slug.error };
     const children = fetchSubIssueNumbers(run, repoRoot, slug.slug, initiative);
     if (!children.ok) return { ok: false, error: children.error };
+    if (children.numbers.length === 0) {
+        return {
+            ok: false,
+            error: {
+                problem: "roadmap-initiative-empty",
+                message:
+                    `#${initiative} has no sub-issues, so there is nothing beneath it for a roadmap to hold. ` +
+                    `A roadmap resolved from an initiative is the epics filed under it: file them under ` +
+                    `#${initiative}, check that #${initiative} is the initiative you meant, or name the epics directly.`,
+            },
+        };
+    }
     return { ok: true, epics: children.numbers };
 }
 
