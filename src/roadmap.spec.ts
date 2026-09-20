@@ -108,6 +108,24 @@ describe("a roadmap resolved from one epic issue", () => {
     });
 });
 
+describe("what a reader can ask a resolved roadmap about its members", () => {
+    it("answers which members are unplanned from the roadmap alone", () => {
+        const roadmap: Roadmap = ok(
+            resolveRoadmap(resolverOver({ 100: ALPHA, 200: BETA }, { 500: { number: 500, title: "Epsilon", body: "Later." } }), [100, 200, 500]),
+        );
+        expect(roadmap.members.filter((m) => m.kind === "unplanned").map((m) => m.number)).toEqual([500]);
+    });
+
+    it("states a kind for every member, including an epic whose stories were all withdrawn", () => {
+        // A withdrawn-out epic resolves with no stories and is fully planned, so an empty story
+        // list cannot stand in for the kind: only the stated kind tells the two apart.
+        const emptied: ResolvedEpic = resolvedEpic(600, "Zeta", []);
+        const roadmap: Roadmap = ok(resolveRoadmap(resolverOver({ 600: emptied }, { 500: { number: 500, title: "Epsilon", body: "Later." } }), [500, 600]));
+        expect(roadmap.members.every((m) => m.kind !== undefined)).toBe(true);
+        expect(roadmap.members.find((m) => m.number === 600)?.kind).toBe("planned");
+    });
+});
+
 describe("a roadmap resolved from several epics", () => {
     it("orders the stories of every epic together rather than epic by epic", () => {
         const roadmap: Roadmap = ok(resolveRoadmap(resolverOver({ 100: ALPHA, 200: BETA }), [100, 200]));
@@ -129,6 +147,14 @@ describe("a member nobody has planned yet", () => {
     it("resolves rather than stopping the roadmap, and is one of its members", () => {
         const roadmap: Roadmap = ok(resolveRoadmap(unplannedOnly(), [500]));
         expect(roadmap.members.map((m) => m.number)).toEqual([500]);
+    });
+
+    it("states its kind, so no reader has to infer it from an empty story list", () => {
+        const roadmap: Roadmap = ok(resolveRoadmap(resolverOver({ 100: ALPHA }, { 500: STUB }), [100, 500]));
+        expect(roadmap.members.map((m) => [m.number, m.kind])).toEqual([
+            [100, "planned"],
+            [500, "unplanned"],
+        ]);
     });
 
     it("carries the title and the body of the issue it came from, because that is all it has", () => {

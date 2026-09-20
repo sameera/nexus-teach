@@ -49,8 +49,8 @@ export function io(cwd: string): Captured {
 export const ROADMAP: Roadmap = {
     name: "alpha",
     members: [
-        { number: 100, title: "Alpha" },
-        { number: 200, title: "Beta" },
+        { number: 100, title: "Alpha", kind: "planned" },
+        { number: 200, title: "Beta", kind: "planned" },
     ],
     stories: [
         { number: 11, title: "Pin the plan", body: "Record the state a story had at approval.", epic: 100, blockedBy: [], external: [] },

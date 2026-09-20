@@ -190,6 +190,12 @@ describe("a learner resolves a roadmap from an epic nobody has planned yet", () 
         expect(roadmap?.members[0].body).toBe("What nobody has planned yet.");
         expect(roadmap?.stories).toEqual([]);
     });
+
+    it("writes the member's kind down, so a later phase reads it off the file", () => {
+        const repo: string = initRepo();
+        runWorkbookCli(["roadmap", "--epic", "500"], makeIo(repo), ghRunner(STUB, []));
+        expect(readRoadmap(repo, "epsilon")?.members[0].kind).toBe("unplanned");
+    });
 });
 
 describe("a number that names something other than an epic", () => {

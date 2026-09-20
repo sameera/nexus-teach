@@ -63,9 +63,20 @@ export interface RoadmapStory {
  * carried: nothing downstream reads it, and the structured resolution the shared resolver returns
  * does not include it, so fetching it would cost one call per epic for material nobody uses.
  */
+export type RoadmapMemberKind = "planned" | "unplanned";
+
 export interface RoadmapMember {
     number: number;
     title: string;
+    /**
+     * Which kind this member is, stated rather than inferred.
+     *
+     * An empty story list does not answer the question: an epic whose stories were all withdrawn
+     * resolves with no stories and is fully planned, so inference would report it as unplanned. It
+     * is also the wrong shape of answer — a reader asking about one member would have to hold the
+     * whole story set to work it out.
+     */
+    kind: RoadmapMemberKind;
     /** An unplanned member's issue body. Absent on a planned member, whose stories carry its content. */
     body?: string;
 }
@@ -167,9 +178,14 @@ export function resolveRoadmap(resolve: MemberResolver, issues: readonly number[
         if (!result.ok) return { ok: false, error: result.error };
         if (result.member.kind === "planned") {
             planned.push(result.member.epic);
-            members.push({ number: result.member.epic.number, title: result.member.epic.title });
+            members.push({ number: result.member.epic.number, title: result.member.epic.title, kind: "planned" });
         } else {
-            members.push({ number: result.member.number, title: result.member.title, body: result.member.body });
+            members.push({
+                number: result.member.number,
+                title: result.member.title,
+                kind: "unplanned",
+                body: result.member.body,
+            });
         }
     }
 
