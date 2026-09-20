@@ -47,6 +47,8 @@ import {
     readRoadmap,
     resolveRoadmap,
     writeRoadmap,
+    type MemberResolver,
+    type MemberResult,
     type Roadmap,
     type RoadmapProblem,
     type RoadmapResult,
@@ -57,7 +59,8 @@ import { draftFromExtractions, extractionsDir, focusMatchedNothing, proposedVoca
 import { planDraftPath, readPlanDraft, writePlanDraft, type CoverageGap, type PlanDraft, type PlanStub } from "./plan-draft.js";
 import { rebuildDraft, refuseUncleanCoverage, renderGateDigest, type CoverageRefusal } from "./plan-approval.js";
 import { applyDeclaration, rewritePlan, type Declaration, type DeclarationResult } from "./plan-rewrite.js";
-import { resolveEpic } from "@nexus/epic-resolve/resolve";
+import { resolveEpic, type ResolveEpicResult } from "@nexus/epic-resolve/resolve";
+import { fetchIssue } from "@nexus/epic-resolve/gh";
 import { defaultOutPath } from "@nexus/epic-resolve/write";
 import { parseAuthoredSources, pinSources, type AuthoredSources, type DecisionRecordState, type PinningResult } from "./source-pinning.js";
 import { resolveWorkspace } from "@nexus/workspace/resolve";
@@ -354,6 +357,36 @@ function issuesRoot(startDir: string): string {
     return resolved.workspace.mode === "workspace" ? resolved.workspace.hubRoot : resolved.workspace.root;
 }
 
+/**
+ * The seam a roadmap resolves each of its members through.
+ *
+ * The shared resolver is called unchanged for every named issue, including its check that the
+ * number really is an epic. Exactly one of its diagnostics — the one it raises for an epic that has
+ * been identified but not planned — means "this member is unplanned" rather than "this member
+ * cannot be read", and only then is the issue read again for the title and body that are all such a
+ * member has. Every other refusal still fails the whole resolution.
+ *
+ * Reacting to the resolver's own refusal is what keeps one definition of "unplanned" in the system:
+ * this stage never names the label behind it and keeps no second copy of the rule, and because the
+ * resolver checks epic-ness before planned-ness, a story number or a decision-record number is
+ * still refused for a roadmap exactly as it was. The relaxation lives here, at the one call site in
+ * this repository that resolves a roadmap to teach from, so nothing else can reach it.
+ */
+function memberResolver(run: Runner, root: string): MemberResolver {
+    return (issue: number): MemberResult => {
+        const result: ResolveEpicResult = resolveEpic(run, root, issue, { requireEpic: true });
+        if (result.ok) return { ok: true, member: { kind: "planned", epic: result.resolved } };
+        if (result.error.problem !== "epic-not-planned") return { ok: false, error: result.error };
+
+        const unplanned = fetchIssue(run, root, issue, "epic-not-found");
+        if (!unplanned.ok) return { ok: false, error: unplanned.error };
+        return {
+            ok: true,
+            member: { kind: "unplanned", number: issue, title: unplanned.issue.title, body: unplanned.issue.body },
+        };
+    };
+}
+
 /** How a named refusal reads: the diagnostic's own name, then what to do about it. */
 function reportRoadmapProblem(error: RoadmapProblem, io: WorkbookCliIo): number {
     io.stderr(`${error.problem}: ${error.message}`);
@@ -363,11 +396,13 @@ function reportRoadmapProblem(error: RoadmapProblem, io: WorkbookCliIo): number 
 /**
  * `nexus workbook roadmap` — resolve the roadmap, then make the workbook it will be taught in.
  *
- * Every epic is validated as a planned epic before anything else happens (invariant 3): the learner
+ * Every number is validated as an epic before anything else happens (invariant 3): the learner
  * types this number, so it is untrusted input, and a run against something that is not an epic has
- * to stop before the interview exists to be asked. The workbook is created only once resolution has
- * succeeded, because the workbook slug is the identity one interview per roadmap is keyed on and
- * creating it is also what guarantees the learner folder is ignored.
+ * to stop before the interview exists to be asked. Whether that epic has been planned yet is a
+ * separate question, and one a teaching roadmap answers by holding the epic either way. The
+ * workbook is created only once resolution has succeeded, because the workbook slug is the identity
+ * one interview per roadmap is keyed on and creating it is also what guarantees the learner folder
+ * is ignored.
  */
 function runRoadmap(repoRoot: string, name: string | undefined, flags: Flags, io: WorkbookCliIo, run: Runner): number {
     const named: boolean = flags.epic !== undefined;
@@ -396,11 +431,7 @@ function runRoadmap(repoRoot: string, name: string | undefined, flags: Flags, io
         epics = found.epics;
     }
 
-    const result: RoadmapResult = resolveRoadmap(
-        (epic: number) => resolveEpic(run, root, epic, { requireEpic: true }),
-        epics,
-        name === undefined ? {} : { name },
-    );
+    const result: RoadmapResult = resolveRoadmap(memberResolver(run, root), epics, name === undefined ? {} : { name });
     if (!result.ok) return reportRoadmapProblem(result.error, io);
 
     const roadmap: Roadmap = result.roadmap;
@@ -408,7 +439,7 @@ function runRoadmap(repoRoot: string, name: string | undefined, flags: Flags, io
     const written: string = writeRoadmap(repoRoot, roadmap);
     io.stdout(
         `resolved the roadmap ${roadmap.name}: ${roadmap.stories.length} stor${roadmap.stories.length === 1 ? "y" : "ies"} ` +
-        `across ${roadmap.epics.map((n) => `#${n}`).join(", ")}.`,
+        `across ${roadmap.members.map((m) => `#${m.number}`).join(", ")}.`,
     );
     io.stdout(`  ${written}`);
     return 0;

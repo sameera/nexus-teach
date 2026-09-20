@@ -6,9 +6,16 @@
  * than authored by hand, and it is resolved through the same shared epic resolver the
  * decision-record, analyze and close stages already use (record #478). That resolver owns five
  * rules this module would otherwise write a second time — record-sub-issue exclusion, withdrawn-story
- * dropping, the epic-stub refusal, workspace-aware targeting, and fail-closed behaviour on a story it
- * cannot fetch — and a second copy of them drifts silently, which here means teaching work that was
- * withdrawn or was never planned.
+ * dropping, the unplanned-epic refusal, workspace-aware targeting, and fail-closed behaviour on a
+ * story it cannot fetch — and a second copy of them drifts silently, which here means teaching work
+ * that was withdrawn or was never planned.
+ *
+ * A roadmap a learner is taught from is still growing, though, so it holds two kinds of member
+ * (epic #64): a planned epic, and an epic nobody has planned yet. The second is exactly what the
+ * resolver refuses by name, and that refusal is not weakened — it still fires, and the seam this
+ * module resolves members through catches that one diagnostic and reads the issue itself. So the
+ * rule for what counts as unplanned stays the resolver's, and this module never names the label
+ * behind it.
  *
  * What this module adds is the part the resolver has no opinion about: many epics become one story
  * set, in one dependency-respecting order across all of them, with the edges that point outside the
@@ -27,7 +34,7 @@ import * as path from "node:path";
 import { type RunResult, type Runner } from "@nexus/workspace/run";
 import { backlogQuery } from "@nexus/delivery-config/backlog";
 import { layersAt } from "@nexus/delivery-config/resolve";
-import { type ResolveEpicResult, type ResolvedEpic } from "@nexus/epic-resolve/resolve";
+import { type ResolvedEpic } from "@nexus/epic-resolve/resolve";
 import { MATERIALIZED_DIR } from "@nexus/epic-resolve/write";
 
 /** The most epics one roadmap may hold, refused before any fetch begins (invariant 13). */
@@ -46,12 +53,29 @@ export interface RoadmapStory {
     external: number[];
 }
 
+/**
+ * One member of the roadmap: an epic issue the roadmap was resolved from.
+ *
+ * A member is not always a planned epic. An epic nobody has planned yet has a title and a body and
+ * nothing else — no stories to contribute, and no structured resolution behind it. Its body is
+ * therefore carried here, because it is the only material that member has and no later phase may go
+ * back to the issue graph to learn what a member says. A planned member's body is deliberately not
+ * carried: nothing downstream reads it, and the structured resolution the shared resolver returns
+ * does not include it, so fetching it would cost one call per epic for material nobody uses.
+ */
+export interface RoadmapMember {
+    number: number;
+    title: string;
+    /** An unplanned member's issue body. Absent on a planned member, whose stories carry its content. */
+    body?: string;
+}
+
 export interface Roadmap {
     /** The roadmap's name, which is also the workbook slug the interview is keyed on. */
     name: string;
-    /** The epic issues it was resolved from, in ascending order. */
-    epics: number[];
-    /** Every story of every epic, in one dependency-respecting order across all of them. */
+    /** The epic issues it was resolved from, planned and unplanned alike, in ascending order. */
+    members: RoadmapMember[];
+    /** Every story of every planned member, in one dependency-respecting order across all of them. */
     stories: RoadmapStory[];
 }
 
@@ -64,15 +88,30 @@ export interface RoadmapProblem {
 export type RoadmapResult = { ok: true; roadmap: Roadmap } | { ok: false; error: RoadmapProblem };
 
 /**
- * The shared resolver, injected.
+ * One member as the seam resolved it: a planned epic, or an epic nobody has planned yet.
  *
- * What this module takes from it is the **structured** resolution, never the `epic.md` markdown it
- * also returns. A story body is a whole issue body and a real one carries its own `## Acceptance
- * Criteria` heading, which in the rendered document is indistinguishable from the epic's next H2
- * section — so a roadmap parsed back out of that markdown would silently drop everything a story
- * says past its first sub-heading, and invariant 5 would hold in name only.
+ * A planned member arrives as the shared resolver's **structured** resolution, never the `epic.md`
+ * markdown it also returns. A story body is a whole issue body and a real one carries its own
+ * `## Acceptance Criteria` heading, which in the rendered document is indistinguishable from the
+ * epic's next H2 section — so a roadmap parsed back out of that markdown would silently drop
+ * everything a story says past its first sub-heading, and invariant 5 would hold in name only. The
+ * markdown is absent from this type, so nothing here can reach for it.
  */
-export type EpicResolver = (epic: number) => ResolveEpicResult;
+export type ResolvedMember =
+    | { kind: "planned"; epic: ResolvedEpic }
+    | { kind: "unplanned"; number: number; title: string; body: string };
+
+export type MemberResult = { ok: true; member: ResolvedMember } | { ok: false; error: RoadmapProblem };
+
+/**
+ * The seam every member is resolved through, injected.
+ *
+ * It resolves a *member*, not an epic, because deciding that an epic is merely unplanned rather
+ * than unreadable takes a second read of the issue graph — and that belongs in the wiring, beside
+ * the shared resolver it reacts to, rather than in assembly. Assembly then has no opinion about
+ * labels or diagnostics, and stays testable without a network or a fake issue graph.
+ */
+export type MemberResolver = (issue: number) => MemberResult;
 
 /** A roadmap name derived from an epic's title — lower case, hyphenated, a plain directory name. */
 export function nameFromTitle(title: string, epic: number): string {
@@ -98,8 +137,8 @@ export interface ResolveRoadmapOptions {
  * whole resolution: a roadmap that quietly omits an epic the learner asked for is
  * indistinguishable from a complete one.
  */
-export function resolveRoadmap(resolve: EpicResolver, epics: readonly number[], opts: ResolveRoadmapOptions = {}): RoadmapResult {
-    const wanted: number[] = [...new Set(epics)].sort((a, b) => a - b);
+export function resolveRoadmap(resolve: MemberResolver, issues: readonly number[], opts: ResolveRoadmapOptions = {}): RoadmapResult {
+    const wanted: number[] = [...new Set(issues)].sort((a, b) => a - b);
     if (wanted.length === 0) {
         return {
             ok: false,
@@ -121,21 +160,31 @@ export function resolveRoadmap(resolve: EpicResolver, epics: readonly number[], 
         };
     }
 
-    const resolved: ResolvedEpic[] = [];
-    for (const epic of wanted) {
-        const result: ResolveEpicResult = resolve(epic);
+    const members: RoadmapMember[] = [];
+    const planned: ResolvedEpic[] = [];
+    for (const issue of wanted) {
+        const result: MemberResult = resolve(issue);
         if (!result.ok) return { ok: false, error: result.error };
-        resolved.push(result.resolved);
+        if (result.member.kind === "planned") {
+            planned.push(result.member.epic);
+            members.push({ number: result.member.epic.number, title: result.member.epic.title });
+        } else {
+            members.push({ number: result.member.number, title: result.member.title, body: result.member.body });
+        }
     }
 
-    const ordered = orderStories(resolved);
+    // Only planned members reach the story order: an unplanned one has no stories, and inventing
+    // synthetic ones for it would push work carrying no acceptance criteria into every later phase.
+    const ordered = orderStories(planned);
     if (!ordered.ok) return ordered;
 
     return {
         ok: true,
         roadmap: {
-            name: opts.name ?? nameFromTitle(resolved[0].title, wanted[0]),
-            epics: wanted,
+            // The name comes off the first member whatever kind it is, because a roadmap whose
+            // first member is unplanned still has to be named something the learner typed or can read.
+            name: opts.name ?? nameFromTitle(members[0].title, wanted[0]),
+            members,
             stories: ordered.stories,
         },
     };

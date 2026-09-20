@@ -28,7 +28,10 @@ afterEach(() => {
 /** Two epics; #32 is the one story whose work the learner did not come to build. */
 const ROADMAP: Roadmap = {
     name: "alpha",
-    epics: [100, 200],
+    members: [
+        { number: 100, title: "Alpha" },
+        { number: 200, title: "Beta" },
+    ],
     stories: [
         { number: 31, title: "Order the roadmap", body: "Order stories.", epic: 100, blockedBy: [], external: [] },
         { number: 32, title: "Render the page", body: "Render HTML.", epic: 100, blockedBy: [31], external: [] },

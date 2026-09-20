@@ -2,14 +2,15 @@ import { describe, expect, it } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { serializeEpic } from "@nexus/epic-resolve/serialize";
-import { type ResolveEpicResult, type ResolvedEpic } from "@nexus/epic-resolve/resolve";
+import { type ResolvedEpic } from "@nexus/epic-resolve/resolve";
 import {
     ROADMAP_EPIC_CAP,
     readRoadmap,
     resolveRoadmap,
     roadmapPath,
     writeRoadmap,
+    type MemberResolver,
+    type MemberResult,
     type Roadmap,
     type RoadmapResult,
 } from "./roadmap.js";
@@ -33,25 +34,28 @@ function resolvedEpic(epic: number, title: string, stories: StorySeed[]): Resolv
     };
 }
 
-function resolverOver(epics: Record<number, ResolvedEpic>): (epic: number) => ResolveEpicResult {
-    return (epic: number): ResolveEpicResult => {
-        const resolved: ResolvedEpic | undefined = epics[epic];
-        if (resolved === undefined) {
-            return { ok: false, error: { problem: "epic-not-found", message: `#${epic} could not be read` } };
+/** An epic nobody has planned yet, as the seam hands it back: a title, a body, and no stories. */
+interface UnplannedSeed {
+    number: number;
+    title: string;
+    body: string;
+}
+
+/**
+ * The member seam, faked.
+ *
+ * It hands back the structured resolution and nothing else — the seam has no `epic.md` markdown on
+ * it, so no test here can reach for a document whose sub-headings would have lost what a story says.
+ */
+function resolverOver(epics: Record<number, ResolvedEpic>, unplanned: Record<number, UnplannedSeed> = {}): MemberResolver {
+    return (issue: number): MemberResult => {
+        const resolved: ResolvedEpic | undefined = epics[issue];
+        if (resolved !== undefined) return { ok: true, member: { kind: "planned", epic: resolved } };
+        const stub: UnplannedSeed | undefined = unplanned[issue];
+        if (stub !== undefined) {
+            return { ok: true, member: { kind: "unplanned", number: stub.number, title: stub.title, body: stub.body } };
         }
-        // The markdown the resolver also returns is rendered here by the real serializer, so a test
-        // that reached for it would get the genuine document — and still find no acceptance criteria
-        // in it. Nothing in this module may read it.
-        return {
-            ok: true,
-            record: null,
-            resolved,
-            markdown: serializeEpic({
-                epic: { number: epic, title: resolved.title, body: "## Description\n\nAn epic.\n" },
-                stories: resolved.stories,
-                blockedBy: resolved.blockedBy,
-            }),
-        };
+        return { ok: false, error: { problem: "epic-not-found", message: `#${issue} could not be read` } };
     };
 }
 
@@ -108,13 +112,44 @@ describe("a roadmap resolved from several epics", () => {
     it("orders the stories of every epic together rather than epic by epic", () => {
         const roadmap: Roadmap = ok(resolveRoadmap(resolverOver({ 100: ALPHA, 200: BETA }), [100, 200]));
         expect(roadmap.stories.map((s) => s.number)).toEqual([11, 12, 21, 22]);
-        expect(roadmap.epics).toEqual([100, 200]);
+        expect(roadmap.members.map((m) => m.number)).toEqual([100, 200]);
     });
 
     it("breaks ties by ascending issue number, so the same graph resolves to the same order", () => {
         const first = ok(resolveRoadmap(resolverOver({ 100: ALPHA, 200: BETA }), [100, 200]));
         const again = ok(resolveRoadmap(resolverOver({ 100: ALPHA, 200: BETA }), [200, 100]));
         expect(again.stories.map((s) => s.number)).toEqual(first.stories.map((s) => s.number));
+    });
+});
+
+describe("a member nobody has planned yet", () => {
+    const STUB: UnplannedSeed = { number: 500, title: "Epsilon", body: "What nobody has planned yet." };
+    const unplannedOnly = (): MemberResolver => resolverOver({}, { 500: STUB });
+
+    it("resolves rather than stopping the roadmap, and is one of its members", () => {
+        const roadmap: Roadmap = ok(resolveRoadmap(unplannedOnly(), [500]));
+        expect(roadmap.members.map((m) => m.number)).toEqual([500]);
+    });
+
+    it("carries the title and the body of the issue it came from, because that is all it has", () => {
+        const roadmap: Roadmap = ok(resolveRoadmap(unplannedOnly(), [500]));
+        expect(roadmap.members[0].title).toBe("Epsilon");
+        expect(roadmap.members[0].body).toBe("What nobody has planned yet.");
+    });
+
+    it("contributes no story, so the roadmap holds none belonging to it", () => {
+        const roadmap: Roadmap = ok(resolveRoadmap(resolverOver({ 100: ALPHA }, { 500: STUB }), [100, 500]));
+        expect(roadmap.stories.map((s) => s.epic)).toEqual([100, 100]);
+    });
+
+    it("names the roadmap off its own title when it is the first member", () => {
+        expect(ok(resolveRoadmap(unplannedOnly(), [500])).name).toBe("epsilon");
+    });
+
+    it("leaves every planned member's stories, bodies and edges exactly as they were", () => {
+        const mixed: Roadmap = ok(resolveRoadmap(resolverOver({ 100: ALPHA, 200: BETA }, { 500: STUB }), [100, 200, 500]));
+        const planned: Roadmap = ok(resolveRoadmap(resolverOver({ 100: ALPHA, 200: BETA }), [100, 200]));
+        expect(mixed.stories).toEqual(planned.stories);
     });
 });
 
@@ -154,9 +189,9 @@ describe("a resolution that cannot produce a roadmap", () => {
 
     it("refuses more epics than the cap before it fetches anything", () => {
         let fetched = 0;
-        const counting = (epic: number): ResolveEpicResult => {
+        const counting: MemberResolver = (issue: number): MemberResult => {
             fetched++;
-            return resolverOver({ 100: ALPHA })(epic);
+            return resolverOver({ 100: ALPHA })(issue);
         };
         const tooMany: number[] = Array.from({ length: ROADMAP_EPIC_CAP + 1 }, (_, i) => 100 + i);
         const result: RoadmapResult = resolveRoadmap(counting, tooMany);
