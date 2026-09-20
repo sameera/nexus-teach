@@ -1,9 +1,9 @@
 ---
 title: "Workbook Store"
 aliases: ["workbook", "workbook folder", "lessons folder", "teaching plan", "workbook placement"]
-touches: ["learner-folder", "lesson-renderer", "teaching-plan", "workbook-home-page", "reference-page", "roadmap-resolution"]
+touches: ["learner-folder", "lesson-renderer", "teaching-plan", "workbook-home-page", "reference-page", "roadmap-resolution", "roadmap-naming"]
 domain: "workbook-rendering/store"
-last_updated_by: "#64"
+last_updated_by: "#65"
 status: active
 verification: verified
 ---
@@ -33,7 +33,8 @@ The store is created on first use and holds one folder per workbook. Inside a wo
 - [teaching-plan](teaching-plan.md) — the plan of slices this store holds, which makes an unwritten lesson a stub rather than a mismatch.
 - [workbook-home-page](workbook-home-page.md) — the page written at the workbook's root beside the lesson pages, from the plan this store holds.
 - [reference-page](reference-page.md) — the authored prose of reference pages, one file per concept, in its own folder beside the lessons and never named in the plan.
-- [roadmap-resolution](roadmap-resolution.md) — creates the workbook once a roadmap resolves, and gives it the slug the roadmap took from its lowest-numbered member.
+- [roadmap-resolution](roadmap-resolution.md) — creates the workbook once a roadmap resolves.
+- [roadmap-naming](roadmap-naming.md) — settles the name this store takes as its slug, from the issue the lead named the roadmap by.
 
 ## Decision Log
 
@@ -60,3 +61,7 @@ The teaching stage now ships as a package of its own, and this page came with it
 ### 2026-09-20 — #64 — Reciprocal link from roadmap-resolution
 
 A workbook is still created only after its roadmap resolves, and it still takes its slug from the roadmap's name. That name now comes off the lowest-numbered member whichever kind it is, so a roadmap whose first member is an epic nobody has planned yet still names a workbook. The store's layout and placement rules are unchanged.
+
+### 2026-09-20 — #65 — Reciprocal link from roadmap-naming
+
+Where this store's slug comes from is now settled on its own page, because a roadmap can be named by one initiative issue number as well as by a list or a search. The slug is that roadmap's name, so the edge points at naming rather than at resolution, and the resolution edge keeps only the fact that resolving is what creates the workbook.

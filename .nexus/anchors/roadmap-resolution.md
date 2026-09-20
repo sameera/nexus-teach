@@ -1,6 +1,6 @@
 ---
 concept: roadmap-resolution
-source_sha: bfeac465b032b00980a496ad8af2692890046f52
+source_sha: c3ba6fe6569a5f0ac677a1cc4062fbf25ed7fd47
 generated: 2026-09-20
 ---
 
@@ -9,7 +9,7 @@ generated: 2026-09-20
 
 # Code Anchors: Roadmap Resolution
 
-- `src/workbook-cli.ts` — the seam that calls the shared resolver, catches its one unplanned-epic refusal, reads the issue again for that member, and drops the exclusion on the teach-from path
-- `src/roadmap.ts` — the member limit checked on the named numbers before any fetch, and the search that names a roadmap with its exclusion term as a parameter
-- `src/roadmap-cli.spec.ts` — drives the installed resolver with only the issue-graph runner faked, so an upstream rename of that refusal fails here rather than silently
-- `src/roadmap.spec.ts` — pins the fail-closed behaviour on every other refusal and the limit refused before anything is fetched
+- `src/workbook-cli.ts` — the seam that calls the shared resolver, catches its one unplanned-epic refusal, and reads the issue again for that member (#83)
+- `src/roadmap.ts` — the loop that turns each named number into a member and fails the whole resolution on any other refusal (#83)
+- `src/roadmap-cli.spec.ts` — drives the installed resolver with only the issue-graph runner faked, so an upstream rename of that refusal fails here rather than silently (#83)
+- `src/roadmap.spec.ts` — pins the fail-closed behaviour on every other refusal

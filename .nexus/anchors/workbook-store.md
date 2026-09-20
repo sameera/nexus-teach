@@ -1,6 +1,6 @@
 ---
 concept: workbook-store
-source_sha: bfeac465b032b00980a496ad8af2692890046f52
+source_sha: c3ba6fe6569a5f0ac677a1cc4062fbf25ed7fd47
 generated: 2026-09-20
 ---
 
@@ -12,5 +12,5 @@ generated: 2026-09-20
 - `src/workbook-store.ts` — the store's layout including the authored reference folder, the plan replaced whole in one rename, and the write that lands the plan and its pages together or not at all.
 - `src/workbook-placement.ts` — where a workbook belongs: the hub refusal naming the declared members, and the member resolution from the running checkout or an explicit name.
 - `src/workbook-placement.spec.ts` — covers the hub refusal, the member resolution from either direction, and the single-repo case.
-- `src/workbook-cli.ts` — the workbook create subverb, the one caller that makes a workbook and ensures the learner-folder rule.
+- `src/workbook-cli.ts` — the workbook create subverb, the one caller that makes a workbook and ensures the learner-folder rule (#83)
 - `src/workbook-store.spec.ts` — covers the stub tolerated under a plan of slices, the lesson the plan does not name still failing, and the written-lesson listing.
