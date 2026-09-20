@@ -38,8 +38,16 @@ interface FakeStory {
     blockedBy?: number[];
 }
 
+/** The epic the fake issue graph is built around. Labels and a body are only set by the stub cases. */
+interface FakeEpic {
+    number: number;
+    title: string;
+    body?: string;
+    labels?: string[];
+}
+
 /** Answers the shared resolver's `gh` calls for one epic, and nothing else. */
-function ghRunner(epic: { number: number; title: string }, stories: FakeStory[], calls: string[][] = []): Runner {
+function ghRunner(epic: FakeEpic, stories: FakeStory[], calls: string[][] = []): Runner {
     const byNumber = new Map(stories.map((s) => [s.number, s]));
     return (cmd: string, args: string[]): RunResult => {
         calls.push([cmd, ...args]);
@@ -51,7 +59,8 @@ function ghRunner(epic: { number: number; title: string }, stories: FakeStory[],
         if (args[0] === "issue" && args[1] === "view") {
             const n: number = Number(args[2]);
             if (n === epic.number) {
-                return ok(JSON.stringify({ number: n, title: epic.title, body: "", state: "OPEN", stateReason: "", labels: [] }));
+                const labels = (epic.labels ?? []).map((name) => ({ name }));
+                return ok(JSON.stringify({ number: n, title: epic.title, body: epic.body ?? "", state: "OPEN", stateReason: "", labels }));
             }
             const story: FakeStory | undefined = byNumber.get(n);
             if (story === undefined) return fail(`not found: #${n}`);
@@ -62,7 +71,7 @@ function ghRunner(epic: { number: number; title: string }, stories: FakeStory[],
             // The combined facts query — matched before the bare parent query it contains.
             if (query.includes("parent{number} issueType{name}")) {
                 const n = Number((args.find((a) => a.startsWith("num=")) ?? "num=0").slice(4));
-                const labels: string[] = n === epic.number ? ["epic"] : byNumber.has(n) ? ["story"] : [];
+                const labels: string[] = n === epic.number ? ["epic", ...(epic.labels ?? [])] : byNumber.has(n) ? ["story"] : [];
                 if (n !== epic.number && !byNumber.has(n)) return ok(JSON.stringify({ data: { repository: { issue: null } } }));
                 return ok(
                     JSON.stringify({
@@ -155,6 +164,31 @@ describe("a learner resolves a roadmap from an epic issue", () => {
         const io: Captured = makeIo(repo);
         runWorkbookCli(["roadmap", "my-roadmap", "--epic", "100"], io, ghRunner({ number: 100, title: "Alpha" }, STORIES));
         expect(readRoadmap(repo, "my-roadmap")).not.toBeNull();
+    });
+});
+
+describe("a learner resolves a roadmap from an epic nobody has planned yet", () => {
+    // `needs-refinement` is what the shared publishing resolver falls back to for the unplanned
+    // label, and this spec drives the *installed* resolver rather than a substitute — so a Nexus
+    // release that renamed or restructured the refusal this relaxation keys on fails here, loudly,
+    // instead of turning every roadmap holding an unplanned member back into a hard failure.
+    const STUB: FakeEpic = { number: 500, title: "Epsilon", body: "What nobody has planned yet.", labels: ["needs-refinement"] };
+
+    it("resolves it as a member instead of refusing the whole roadmap", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        const code: number = runWorkbookCli(["roadmap", "--epic", "500"], io, ghRunner(STUB, []));
+        expect(code).toBe(0);
+        expect(readRoadmap(repo, "epsilon")?.members.map((m) => m.number)).toEqual([500]);
+    });
+
+    it("carries the title and body off the issue, and gives it no stories", () => {
+        const repo: string = initRepo();
+        runWorkbookCli(["roadmap", "--epic", "500"], makeIo(repo), ghRunner(STUB, []));
+        const roadmap: Roadmap | null = readRoadmap(repo, "epsilon");
+        expect(roadmap?.members[0].title).toBe("Epsilon");
+        expect(roadmap?.members[0].body).toBe("What nobody has planned yet.");
+        expect(roadmap?.stories).toEqual([]);
     });
 });
 

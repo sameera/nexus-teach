@@ -14,10 +14,11 @@ whether the learner builds it or a coding agent does.
 - **Ordering, splitting, scaffolds and the coverage check** — [#18](https://github.com/sameera/nexus-teach/issues/18) (filed in Nexus as #457)
 - **The plan is approved at a decision-grade gate and renders as a home page** — [#19](https://github.com/sameera/nexus-teach/issues/19) (filed in Nexus as #458)
 - **A stub's sources are pinned when its epic is promoted** — [#20](https://github.com/sameera/nexus-teach/issues/20) (filed in Nexus as #459)
+- **A roadmap carries epics nobody has planned yet** — [#64](https://github.com/sameera/nexus-teach/issues/64)
 
 ## Notes
 
-These five were one epic stub — *A roadmap becomes an approved plan of lesson stubs*,
+The first five were one epic stub — *A roadmap becomes an approved plan of lesson stubs*,
 [#3](https://github.com/sameera/nexus-teach/issues/3) — before it was decomposed.
 
 The home page #19 renders is a workbook page, so its concept files under

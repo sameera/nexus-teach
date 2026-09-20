@@ -48,7 +48,10 @@ export function io(cwd: string): Captured {
 /** A roadmap spanning two epics: #11 and #12 belong to #100, #21 to #200. */
 export const ROADMAP: Roadmap = {
     name: "alpha",
-    epics: [100, 200],
+    members: [
+        { number: 100, title: "Alpha" },
+        { number: 200, title: "Beta" },
+    ],
     stories: [
         { number: 11, title: "Pin the plan", body: "Record the state a story had at approval.", epic: 100, blockedBy: [], external: [] },
         { number: 12, title: "Report drift", body: "Compare the pinned state with the live one.", epic: 100, blockedBy: [11], external: [] },

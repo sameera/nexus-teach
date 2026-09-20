@@ -6,5 +6,8 @@ coverage/
 *.tsbuildinfo
 vitest.config.*.timestamp*
 
+# derived, ephemeral resolver output: a resolved epic or roadmap is regenerated, never committed
+.nexus/tmp/
+
 # local verification against an unpublished Nexus build (see CONTRIBUTING.md)
 *.tgz
