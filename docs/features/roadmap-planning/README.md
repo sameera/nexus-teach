@@ -15,6 +15,7 @@ whether the learner builds it or a coding agent does.
 - **The plan is approved at a decision-grade gate and renders as a home page** — [#19](https://github.com/sameera/nexus-teach/issues/19) (filed in Nexus as #458)
 - **A stub's sources are pinned when its epic is promoted** — [#20](https://github.com/sameera/nexus-teach/issues/20) (filed in Nexus as #459)
 - **A roadmap carries epics nobody has planned yet** — [#64](https://github.com/sameera/nexus-teach/issues/64)
+- **An initiative resolves to the epics and stubs beneath it** — [#65](https://github.com/sameera/nexus-teach/issues/65)
 
 ## Notes
 

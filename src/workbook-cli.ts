@@ -43,7 +43,9 @@ import { runTeachingSession, type SessionResult } from "./teaching-session.js";
 import { parseCommands, type DeclaredCommands, type WorkbookPlan } from "./workbook-plan.js";
 import { approvePlan, carriedStubs, draftFingerprint, type Approval } from "./plan-commit.js";
 import {
+    epicsFromInitiative,
     epicsFromQuery,
+    nameFromTitle,
     readRoadmap,
     resolveRoadmap,
     writeRoadmap,
@@ -101,6 +103,8 @@ interface Flags {
     prose?: string;
     /** The epic issue a roadmap resolves from. */
     epic?: string;
+    /** The initiative issue whose children a roadmap resolves from. */
+    initiative?: string;
     /** The backlog query a roadmap resolves from. */
     query?: string;
     /** The file holding the answers an agent brought back from the interview. */
@@ -134,6 +138,7 @@ function parseFlags(argv: string[], cwd: string): Flags {
         else if (token === "--note") flags.note = rest[++i];
         else if (token === "--prose") flags.prose = rest[++i];
         else if (token === "--epic") flags.epic = rest[++i];
+        else if (token === "--initiative") flags.initiative = rest[++i];
         else if (token === "--query") flags.query = rest[++i];
         else if (token === "--answers") flags.answers = rest[++i];
         else if (token === "--list") flags.list = rest[++i];
@@ -156,6 +161,7 @@ const USAGE: string = [
     `usage: nexus workbook <${WORKBOOK_SUBVERBS.join("|")}> <name> [--root <dir>] [--repo <member>]`,
     "  create <slug>                       make the workbook and ensure the learner folder is ignored",
     "  roadmap [<name>] --epic <n>         resolve a roadmap from one epic issue",
+    "  roadmap [<name>] --initiative <n>   resolve a roadmap from the epics beneath one initiative",
     "  roadmap <name> --query <expr>       resolve a roadmap from a backlog query",
     "  interview <name> [--answers <file>] the slate to ask from, or the answers to record",
     "  extract <name> [--story <n> [--list <file>]]",
@@ -387,6 +393,12 @@ function memberResolver(run: Runner, root: string): MemberResolver {
     };
 }
 
+/** The issue number a `--epic` or `--initiative` argument names, or null when it names none. */
+function issueNumber(raw: string): number | null {
+    const number: number = Number(String(raw).replace(/^#/, ""));
+    return Number.isInteger(number) && number > 0 ? number : null;
+}
+
 /** How a named refusal reads: the diagnostic's own name, then what to do about it. */
 function reportRoadmapProblem(error: RoadmapProblem, io: WorkbookCliIo): number {
     io.stderr(`${error.problem}: ${error.message}`);
@@ -405,26 +417,49 @@ function reportRoadmapProblem(error: RoadmapProblem, io: WorkbookCliIo): number 
  * is ignored.
  */
 function runRoadmap(repoRoot: string, name: string | undefined, flags: Flags, io: WorkbookCliIo, run: Runner): number {
-    const named: boolean = flags.epic !== undefined;
-    const queried: boolean = flags.query !== undefined;
-    if (named === queried) {
-        io.stderr(`workbook roadmap resolves from exactly one of --epic <n> and --query <expr>\n${USAGE}`);
+    const modes: string[] = [];
+    if (flags.epic !== undefined) modes.push("--epic");
+    if (flags.initiative !== undefined) modes.push("--initiative");
+    if (flags.query !== undefined) modes.push("--query");
+    if (modes.length !== 1) {
+        io.stderr(`workbook roadmap resolves from exactly one of --epic <n>, --initiative <n> and --query <expr>\n${USAGE}`);
         return 2;
     }
-    if (queried && (name === undefined || name.trim() === "")) {
+    if (flags.query !== undefined && (name === undefined || name.trim() === "")) {
         io.stderr(`a query-resolved roadmap has no epic to take its name from, so name it: nexus workbook roadmap <name> --query <expr>`);
         return 2;
     }
 
     const root: string = issuesRoot(repoRoot);
     let epics: number[];
-    if (named) {
-        const epic: number = Number(String(flags.epic).replace(/^#/, ""));
-        if (!Number.isInteger(epic) || epic <= 0) {
+    let chosen: string | undefined = name;
+    if (flags.epic !== undefined) {
+        const epic: number | null = issueNumber(flags.epic);
+        if (epic === null) {
             io.stderr(`workbook roadmap --epic takes an issue number, not ${JSON.stringify(flags.epic)}`);
             return 2;
         }
         epics = [epic];
+    } else if (flags.initiative !== undefined) {
+        const initiative: number | null = issueNumber(flags.initiative);
+        if (initiative === null) {
+            io.stderr(`workbook roadmap --initiative takes an issue number, not ${JSON.stringify(flags.initiative)}`);
+            return 2;
+        }
+        const found = epicsFromInitiative(run, root, initiative);
+        if (!found.ok) return reportRoadmapProblem(found.error, io);
+        epics = found.epics;
+        if (chosen === undefined || chosen.trim() === "") {
+            // The lead named this roadmap by the initiative, so the initiative's own title is what
+            // makes the workbook's identity legible (record #82, invariant 8). Falling through to
+            // the default would slug it after whichever child happens to carry the lowest issue
+            // number — an accident of numbering that shifts when a lower-numbered child is added.
+            // This read is about the initiative and not about any child, so it decides nothing
+            // about what the roadmap holds; that stays the shared resolver's answer, per child.
+            const issue = fetchIssue(run, root, initiative, "epic-not-found");
+            if (!issue.ok) return reportRoadmapProblem(issue.error, io);
+            chosen = nameFromTitle(issue.issue.title, initiative);
+        }
     } else {
         // A roadmap to teach from always wants the unplanned tail of the initiative in it, so the
         // exclusion is dropped here and nowhere else, with no flag for a lead to set. A lead who
@@ -434,7 +469,7 @@ function runRoadmap(repoRoot: string, name: string | undefined, flags: Flags, io
         epics = found.epics;
     }
 
-    const result: RoadmapResult = resolveRoadmap(memberResolver(run, root), epics, name === undefined ? {} : { name });
+    const result: RoadmapResult = resolveRoadmap(memberResolver(run, root), epics, chosen === undefined ? {} : { name: chosen });
     if (!result.ok) return reportRoadmapProblem(result.error, io);
 
     const roadmap: Roadmap = result.roadmap;
