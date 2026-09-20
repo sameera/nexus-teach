@@ -2,6 +2,7 @@
 title: "Coverage Check"
 aliases: ["coverage verdict", "coverage gap", "clean verdict", "focus boundary gap", "gap names the handed-off story", "plan with gaps"]
 touches: ["plan-rewrite", "plan-draft", "scaffold-slice", "prior-knowledge-declaration", "focus-marking", "story-concept-extraction", "plan-approval-gate"]
+domain: "roadmap-planning/ordering"
 last_updated_by: "#691"
 status: active
 verification: verified

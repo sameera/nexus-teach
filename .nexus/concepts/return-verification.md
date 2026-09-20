@@ -2,6 +2,7 @@
 title: "Return Verification"
 aliases: ["suite gate", "fence probe", "breached fence", "unchecked fence", "returning from a pause", "unintegrated handoff", "probe control"]
 touches: ["teaching-session", "teaching-plan", "workbook-handoff", "plan-field-ownership"]
+domain: "teaching-sessions"
 last_updated_by: "#691"
 status: active
 verification: verified

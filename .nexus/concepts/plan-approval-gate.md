@@ -2,6 +2,7 @@
 title: "Plan Approval Gate"
 aliases: ["approval gate", "gate digest", "mark override", "draft fingerprint", "one gate for the whole roadmap", "declining writes nothing"]
 touches: ["plan-draft", "coverage-check", "teaching-plan", "plan-field-ownership", "plan-re-approval", "focus-marking"]
+domain: "roadmap-planning/approval"
 last_updated_by: "#691"
 status: active
 verification: verified

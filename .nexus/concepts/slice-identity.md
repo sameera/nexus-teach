@@ -2,6 +2,7 @@
 title: "Slice Identity"
 aliases: ["slice name", "story and part", "scaffold concept as identity", "a slice is remembered by its lesson", "branch per story", "position is not identity"]
 touches: ["teaching-plan", "teaching-session", "scaffold-slice", "just-in-time-lesson", "plan-rewrite"]
+domain: "roadmap-planning/ordering"
 last_updated_by: "#691"
 status: active
 verification: verified

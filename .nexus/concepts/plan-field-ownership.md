@@ -2,6 +2,7 @@
 title: "Plan Field Ownership"
 aliases: ["field owner", "fixed field list", "no placeholder", "absent until its owner acts", "declared commands", "pinning test written on arrival"]
 touches: ["teaching-plan", "plan-approval-gate", "return-verification", "just-in-time-lesson", "pinned-sources"]
+domain: "roadmap-planning/approval"
 last_updated_by: "#691"
 status: active
 verification: verified

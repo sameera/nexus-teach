@@ -2,6 +2,7 @@
 title: "Focus Marking"
 aliases: ["learner or handoff", "slice mark", "recorded focus", "whole roadmap in focus", "focus verdict", "no focus means every slice"]
 touches: ["story-concept-extraction", "plan-draft", "learner-folder", "handoff-prompt", "plan-rewrite", "coverage-check", "plan-approval-gate"]
+domain: "roadmap-planning/ordering"
 last_updated_by: "#691"
 status: active
 verification: verified

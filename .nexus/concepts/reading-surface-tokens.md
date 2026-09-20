@@ -2,6 +2,7 @@
 title: "Reading Surface Tokens"
 aliases: ["shared reading definition", "reading subset", "lifted tokens", "one palette two surfaces", "print token exception"]
 touches: ["theme-tokens", "offline-page", "lesson-renderer"]
+domain: "workbook-rendering/reading-surface"
 last_updated_by: "#691"
 status: active
 verification: verified

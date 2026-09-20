@@ -2,6 +2,7 @@
 title: "Plan Re-Approval"
 aliases: ["re-approval", "taught prefix", "carried slice", "re-plan after drift", "carried forward unchanged", "identifier rename refusal"]
 touches: ["plan-approval-gate", "plan-rewrite", "plan-drift-gate", "teaching-plan", "pinned-sources"]
+domain: "roadmap-planning/approval"
 last_updated_by: "#691"
 status: active
 verification: verified

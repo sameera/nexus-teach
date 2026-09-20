@@ -2,6 +2,7 @@
 title: "Plan Rewrite"
 aliases: ["rewrite pass", "ordering pass", "introduced once and assumed thereafter", "fewest new concepts per step", "split slice", "split part", "step concept limit", "handoff placement", "nothing iterates"]
 touches: ["plan-draft", "prior-knowledge-declaration", "scaffold-slice", "coverage-check", "focus-marking", "slice-identity", "plan-re-approval"]
+domain: "roadmap-planning/ordering"
 last_updated_by: "#691"
 status: active
 verification: verified

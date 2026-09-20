@@ -2,6 +2,7 @@
 title: "Prior Knowledge Declaration"
 aliases: ["declaration match", "declared concepts", "what the learner already knows", "knowledge slots", "declared phrase", "unmatched phrases", "recorded mapping"]
 touches: ["plan-rewrite", "plan-draft", "concept-vocabulary-merge", "coverage-check"]
+domain: "roadmap-planning/extraction"
 last_updated_by: "#691"
 status: active
 verification: verified

@@ -2,6 +2,7 @@
 title: "Pinned Lesson Sources"
 aliases: ["pinned sources", "source pinning", "sources pinned at record approval", "lesson grounding", "exemplar file", "pin workbook sources"]
 touches: ["teaching-plan", "plan-field-ownership", "plan-re-approval"]
+domain: "roadmap-planning/approval"
 last_updated_by: "#691"
 status: active
 verification: verified

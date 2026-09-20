@@ -2,6 +2,7 @@
 title: "Workbook Home Page"
 aliases: ["home page", "the road ahead", "dependency edges on the page", "not yet written", "in-page anchor graph", "reserved page name"]
 touches: ["lesson-renderer", "teaching-plan", "generated-page-check", "offline-page", "workbook-store"]
+domain: "workbook-rendering/pages"
 last_updated_by: "#691"
 status: active
 verification: verified

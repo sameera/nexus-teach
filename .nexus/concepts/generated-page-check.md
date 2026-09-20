@@ -2,6 +2,7 @@
 title: "Generated Page Check"
 aliases: ["generated page check", "page drift check", "committed generated output", "re-render and compare", "check mode"]
 touches: ["lesson-renderer", "workbook-home-page"]
+domain: "workbook-rendering/pages"
 last_updated_by: "#691"
 status: active
 verification: verified

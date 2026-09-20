@@ -2,6 +2,7 @@
 title: "Teaching Session"
 aliases: ["workbook session", "session chain", "one sitting", "gated chain", "session brief", "one lesson per session", "walks the plan by position", "pinning test on arrival"]
 touches: ["teaching-plan", "plan-drift-gate", "cold-drill", "just-in-time-lesson", "handoff-prompt", "return-verification", "workbook-handoff", "slice-identity", "reference-page"]
+domain: "teaching-sessions"
 last_updated_by: "#691"
 status: active
 verification: verified

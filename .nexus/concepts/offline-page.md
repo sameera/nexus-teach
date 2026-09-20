@@ -2,6 +2,7 @@
 title: "Offline Page"
 aliases: ["opened from disk", "no server", "file-url page", "classic script", "printed lesson", "workbook page assets", "print completeness"]
 touches: ["lesson-renderer", "widget-seam", "reading-surface-tokens", "workbook-home-page", "reference-page"]
+domain: "workbook-rendering/pages"
 last_updated_by: "#691"
 status: active
 verification: verified

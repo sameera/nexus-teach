@@ -2,6 +2,7 @@
 title: "Theme Tokens"
 aliases: ["theming", "dual theme", "light and dark mode", "semantic tokens"]
 touches: [reading-surface-tokens]
+domain: "workbook-rendering/reading-surface"
 last_updated_by: "#691"
 status: active
 verification: verified

@@ -2,6 +2,7 @@
 title: "Story Concept Extraction"
 aliases: ["per-story extraction", "extraction unit", "checked concept list", "concepts a story introduces", "concepts a story assumes", "no readable list"]
 touches: ["concept-vocabulary-merge", "plan-draft", "focus-marking", "coverage-check"]
+domain: "roadmap-planning/extraction"
 last_updated_by: "#691"
 status: active
 verification: verified

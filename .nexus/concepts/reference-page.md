@@ -2,6 +2,7 @@
 title: "Reference Page"
 aliases: ["earned page", "second drill", "compressed page", "owed reference page", "reference prose", "returning learner page"]
 touches: ["cold-drill", "teaching-session", "lesson-renderer", "workbook-store", "offline-page"]
+domain: "workbook-rendering/pages"
 last_updated_by: "#691"
 status: active
 verification: verified

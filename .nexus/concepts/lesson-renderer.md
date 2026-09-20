@@ -2,6 +2,7 @@
 title: "Lesson Renderer"
 aliases: ["workbook renderer", "lesson page", "closed markup channel", "all-or-nothing render", "provenance banner", "quoted code in a lesson"]
 touches: ["workbook-store", "widget-seam", "offline-page", "learner-folder", "reading-surface-tokens", "just-in-time-lesson", "generated-page-check", "workbook-home-page", "component-refusal", "reference-page"]
+domain: "workbook-rendering/pages"
 last_updated_by: "#691"
 status: active
 verification: verified

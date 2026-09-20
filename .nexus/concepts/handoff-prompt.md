@@ -2,6 +2,7 @@
 title: "Handoff Prompt"
 aliases: ["fenced brief", "coding agent handoff", "sibling slices to leave alone", "quoted story text", "prompt fence", "slice not the learner's to build"]
 touches: ["teaching-session", "workbook-handoff", "teaching-plan", "learner-folder", "focus-marking"]
+domain: "teaching-sessions"
 last_updated_by: "#691"
 status: active
 verification: verified
