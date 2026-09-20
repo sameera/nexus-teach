@@ -411,6 +411,58 @@ describe("an initiative with nothing beneath it", () => {
     });
 });
 
+describe("a child of the initiative that is not an epic of either kind", () => {
+    /** An initiative above one real epic and one issue that has no business on a roadmap. */
+    function withChildren(children: number[], extra: FakeIssue[]): FakeIssue[] {
+        return [
+            { number: 900, title: "Ship the thing", children },
+            { number: 100, title: "Alpha", labels: ["epic"], parent: 900, children: [11, 12] },
+            { number: 11, title: "First", body: "Do the first thing.", labels: ["story"], parent: 100 },
+            { number: 12, title: "Second", body: "Do the second thing.", labels: ["story"], parent: 100, blockedBy: [11] },
+            ...extra,
+        ];
+    }
+    const STRAY: FakeIssue = { number: 77, title: "A bug", labels: ["bug"], parent: 900 };
+    const ALSO_STRAY: FakeIssue = { number: 78, title: "A chore", labels: ["chore"], parent: 900 };
+
+    it("stops the whole resolution rather than dropping the child", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        expect(runWorkbookCli(["roadmap", "--initiative", "900"], io, graphRunner(withChildren([100, 77], [STRAY])))).toBe(1);
+        expect(readRoadmap(repo, "ship-the-thing")).toBeNull();
+        expect(fs.existsSync(path.join(repo, ".nexus", "workbook"))).toBe(false);
+    });
+
+    it("names the offending child and says what about it cannot be part of a roadmap", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        runWorkbookCli(["roadmap", "--initiative", "900"], io, graphRunner(withChildren([100, 77], [STRAY])));
+        const said: string = io.err.join("\n");
+        expect(said).toContain("#77");
+        expect(said).toContain("not an epic");
+    });
+
+    it("refuses a child that is itself an initiative by the same name, with no diagnostic of its own", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        const nested: FakeIssue = { number: 77, title: "Another initiative", parent: 900, children: [100] };
+        runWorkbookCli(["roadmap", "--initiative", "900"], io, graphRunner(withChildren([100, 77], [nested])));
+        expect(io.err.join("\n")).toContain("not-an-epic:");
+    });
+
+    it("leaves nothing partial behind when more than one child is wrong, and resolves once they are detached", () => {
+        const repo: string = initRepo();
+        const io: Captured = makeIo(repo);
+        expect(runWorkbookCli(["roadmap", "--initiative", "900"], io, graphRunner(withChildren([100, 77, 78], [STRAY, ALSO_STRAY])))).toBe(1);
+        expect(readRoadmap(repo, "ship-the-thing")).toBeNull();
+        expect(fs.existsSync(path.join(repo, ".nexus", "workbook"))).toBe(false);
+
+        const corrected: number = runWorkbookCli(["roadmap", "--initiative", "900"], makeIo(repo), graphRunner(withChildren([100], [STRAY, ALSO_STRAY])));
+        expect(corrected).toBe(0);
+        expect(readRoadmap(repo, "ship-the-thing")?.members.map((m) => m.number)).toEqual([100]);
+    });
+});
+
 describe("a number that names something other than an epic", () => {
     it("stops, says why that number cannot be a roadmap, and makes no workbook", () => {
         const repo: string = initRepo();
