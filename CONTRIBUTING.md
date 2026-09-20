@@ -23,8 +23,10 @@ pnpm install
 ```
 
 `pnpm install` needs `@sameeraperera/nexus` at a version that publishes its library sources
-(**0.61.0 or later**). Until that release is on the registry, build it from a Nexus checkout and
-install the tarball:
+(**0.61.0 or later**). It comes from the registry.
+
+To test against an unpublished Nexus build, pack it from a Nexus checkout and install the tarball
+(`*.tgz` is gitignored, so it cannot be committed by accident):
 
 ```bash
 cd ../nexus && pnpm nexus:build-release && npm pack
@@ -37,9 +39,15 @@ Point your install location at this checkout, so an edit under `components/` is 
 step in between:
 
 ```bash
-npx tsx src/nxsx-cli.ts install --from-checkout .
-npx tsx src/nxsx-cli.ts version
+pnpm build
+node dist/nxsx.mjs install --from-checkout .
+node dist/nxsx.mjs version
 ```
+
+Run the built bundle, not `tsx src/nxsx-cli.ts`. The CLI imports `@nexus/...` libraries that ship as
+source inside `node_modules/@sameeraperera/nexus`. esbuild resolves them at build time; `tsx` does
+not apply tsconfig `paths` to files under `node_modules`, so it fails with
+`Cannot find module '@nexus/workspace/resolve'`.
 
 The read-out names the install location, says whether it holds a copy or pointers, and — in the
 pointing mode — names the checkout the pointers resolve into.
