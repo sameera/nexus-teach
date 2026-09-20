@@ -29,8 +29,8 @@ afterEach(() => {
 const ROADMAP: Roadmap = {
     name: "alpha",
     members: [
-        { number: 100, title: "Alpha" },
-        { number: 200, title: "Beta" },
+        { number: 100, title: "Alpha", kind: "planned" },
+        { number: 200, title: "Beta", kind: "planned" },
     ],
     stories: [
         { number: 31, title: "Order the roadmap", body: "Order stories.", epic: 100, blockedBy: [], external: [] },
