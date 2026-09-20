@@ -362,6 +362,14 @@ export function readRoadmap(repoRoot: string, name: string): Roadmap | null {
  * an epic nobody has planned yet, or a refusal — stays the shared resolver's answer, given per
  * child at resolution, so this step owns no classification rule at all.
  *
+ * That is deliberate for the child that is neither: a bug, a chore, or an initiative nested under
+ * this one. Every child of an initiative has a parent, so the shared resolver's own refusal for a
+ * number that is not an epic already fires on it, already names it, and already stops the whole
+ * resolution rather than dropping it (invariant 4). Pre-filtering the children by kind here would
+ * word that refusal for this context, and would buy the better sentence with a second, local copy
+ * of the question "is this an epic" — maintained beside the one the shared resolver already runs,
+ * and free to drift from it.
+ *
  * The numbers are returned in GitHub's own order, because deduplicating and sorting them is what
  * resolution already does to every set it is given; doing it here too would be a second copy of
  * that rule, and the one inside resolution is what the order actually comes from.
