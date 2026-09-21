@@ -51,6 +51,14 @@ import {
     type PinningTestRequest,
     type StagedLesson,
 } from "./lesson-writer.js";
+import {
+    epicHome,
+    planningBoundary,
+    renderBoundaryReport,
+    writePlanningBrief,
+    type PlanningBoundary,
+    type PlanningBriefContext,
+} from "./planning-boundary.js";
 import { gateNextLesson, type DriftFinding, type IssueReader, type LessonGate, type TeachingPlan } from "./teaching-plan.js";
 import { sliceId, sliceLabel, toTeachingPlan, type PlanSliceRecord, type WorkbookPlan } from "./workbook-plan.js";
 import {
@@ -103,13 +111,17 @@ export type SessionOutcome =
     | { kind: "brief"; brief: LessonBrief; report: string }
     | { kind: "written"; story?: number; lesson: string; page: string; report: string }
     | { kind: "open"; story?: number; lesson: string; page: string; report: string }
+    | { kind: "plan-next"; epic: number; title: string; remaining: number; briefPath: string | null; report: string }
     | { kind: "done"; report: string };
 
 export interface SessionResult {
     outcome: SessionOutcome;
     /** Every drift the check found, whether or not it blocked. Reported; only the next slice blocks. */
     drift: DriftFinding[];
-    /** What the session could not read under the learner folder. Reported and skipped, never fatal. */
+    /**
+     * What the session could not read — or, on the boundary path, could not write — under the
+     * learner folder. Reported and skipped, never fatal.
+     */
     skipped: string[];
     /**
      * What the session checked and found in order. A clean check says so here rather than saying
@@ -342,6 +354,43 @@ function earnedReport(earned: LessonBrief["earned"]): string {
 }
 
 /**
+ * Write the brief for planning the epic the boundary names, and say where it went.
+ *
+ * A brief that cannot be written is reported beside the verdict rather than replacing it: the
+ * verdict is a fact about the committed plan and does not depend on the brief existing, and this
+ * path has recorded nothing, so there is no half-state to protect (record #95). The handoff path
+ * fails on the same refusal because it has already recorded a pause; this one has not.
+ */
+function planningBriefFor(
+    repoRoot: string,
+    slug: string,
+    plan: WorkbookPlan,
+    boundary: PlanningBoundary,
+    run: Runner,
+    skipped: string[],
+    notes: string[],
+): string | null {
+    const context: PlanningBriefContext = {
+        epic: boundary.next,
+        remaining: boundary.remaining,
+        workbook: slug,
+        workbookRepo: plan.repo,
+        home: epicHome(repoRoot, plan.repo),
+    };
+    try {
+        const briefPath: string = writePlanningBrief(repoRoot, context, run);
+        notes.push(`the brief for planning #${boundary.next.epic} is written at ${briefPath}.`);
+        return briefPath;
+    } catch (e) {
+        skipped.push(
+            `the brief for planning #${boundary.next.epic} could not be written, so the epic to plan ` +
+            `is named here and nowhere else: ${e instanceof Error ? e.message : String(e)}`,
+        );
+        return null;
+    }
+}
+
+/**
  * Run one session. The chain is fixed, and every step in it produces a fact a test can assert.
  */
 export function runTeachingSession(inputs: SessionInputs): SessionResult {
@@ -519,6 +568,27 @@ export function runTeachingSession(inputs: SessionInputs): SessionResult {
     }
 
     if (arrival.kind === "done") {
+        // Nothing is left to teach — but a plan written from a roadmap that was still growing says
+        // so beside the epics it did not plan, and a learner standing at that boundary is owed the
+        // next planning decision rather than the finished report (record #95). The question is
+        // asked here and nowhere earlier: after the sweep, the suite, any handoff return and the
+        // fence, so a boundary verdict can never be reported out of a tree that cannot build.
+        const boundary: PlanningBoundary | null = planningBoundary(plan.unplanned);
+        if (boundary !== null) {
+            return {
+                outcome: {
+                    kind: "plan-next",
+                    epic: boundary.next.epic,
+                    title: boundary.next.title,
+                    remaining: boundary.remaining,
+                    briefPath: planningBriefFor(repoRoot, slug, plan, boundary, run, skipped, notes),
+                    report: renderBoundaryReport(slug, boundary),
+                },
+                drift: [],
+                skipped,
+                notes,
+            };
+        }
         return {
             outcome: { kind: "done", report: `Every slice of ${slug} has been taught and finished.` },
             drift: [],

@@ -45,6 +45,10 @@ export const LEARNER_RECORD_KINDS: readonly string[] = [
     "handoffs",
     "interview",
     "focus-verdicts",
+    // Its own kind rather than a file among the pauses: the pauses folder is what the session scans
+    // to decide whether the learner is returning from a handoff, and a planning brief is a record
+    // that can never be resolved (record #95).
+    "planning-briefs",
 ];
 
 export type LearnerRecordKind = (typeof LEARNER_RECORD_KINDS)[number];
