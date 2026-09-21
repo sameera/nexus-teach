@@ -17,6 +17,7 @@ whether the learner builds it or a coding agent does.
 - **A roadmap carries epics nobody has planned yet** — [#64](https://github.com/sameera/nexus-teach/issues/64)
 - **An initiative resolves to the epics and stubs beneath it** — [#65](https://github.com/sameera/nexus-teach/issues/65)
 - **The plan stops at the planning boundary and shows it** — [#66](https://github.com/sameera/nexus-teach/issues/66)
+- **A concept an unplanned epic will introduce is not scaffolded** — [#88](https://github.com/sameera/nexus-teach/issues/88)
 
 ## Notes
 
