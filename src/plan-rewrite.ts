@@ -25,7 +25,7 @@
  */
 
 import { KNOWLEDGE_SLOTS, type InterviewRecord, type SlotAnswer } from "./interview.js";
-import { type CoverageGap, type CoverageVerdict, type PlanDraft, type PlanStub, type VocabularyEntry } from "./plan-draft.js";
+import { type CoverageGap, type CoverageVerdict, type PlanDraft, type PlanStub, type VocabularyEntry, type WaitingConcept } from "./plan-draft.js";
 
 /** One phrase the planning session matched, the slot it came from, and what it names. */
 export interface DeclaredPhrase {
@@ -137,6 +137,23 @@ export function applyDeclaration(interview: InterviewRecord, draft: PlanDraft, d
  */
 export const STEP_CONCEPT_LIMIT: number = 4;
 
+/** What one unplanned epic will introduce, under the merged vocabulary's identifiers (epic #88). */
+export interface UnplannedConcepts {
+    epic: number;
+    concepts: readonly string[];
+}
+
+/**
+ * Each concept an unplanned epic will introduce, with the first such epic in roadmap member order.
+ * That is the epic the planning brief tells the learner to plan next, and member order is total, so
+ * a re-run names the same epic (record #105).
+ */
+function waitsOn(unplanned: readonly UnplannedConcepts[]): Map<string, number> {
+    const first: Map<string, number> = new Map();
+    for (const member of unplanned) for (const id of member.concepts) if (!first.has(id)) first.set(id, member.epic);
+    return first;
+}
+
 /** One story's dependency edges, as the resolved roadmap records them. */
 export interface StoryEdges {
     story: number;
@@ -159,6 +176,12 @@ export interface RewriteOptions {
      * ordering, because a new edge pointing into lessons already taught cannot move those lessons.
      */
     carried?: readonly PlanStub[];
+    /**
+     * What each unplanned member of the roadmap will introduce, in roadmap member order. A concept a
+     * learner slice assumes that no planned story introduces and one of these does is left to that
+     * epic rather than scaffolded (record #105). Empty on a fully planned roadmap.
+     */
+    unplanned?: readonly UnplannedConcepts[];
 }
 
 /** Append to `into` the entries of `from` that it does not already hold. Order is the first sighting. */
@@ -327,6 +350,12 @@ function appendNumbers(into: number[], from: readonly number[]): void {
  * immediately before the exercise is this feature's own premise. A concept only a **handed-off**
  * story would introduce is never scaffolded — that is the plan being wrong rather than tight, and a
  * scaffold there would cover up the defect the coverage check exists to surface.
+ *
+ * Deferral replaces only the background case (record #105). A concept no planned story introduces
+ * that an **unplanned epic** will introduce is not scaffolded: that epic is where the learner meets
+ * it, beside the work that makes it concrete. A concept a planned learner story introduces too late
+ * is still scaffolded, and one a handed-off story introduces is still a gap, whatever an unplanned
+ * epic says.
  */
 function decideScaffolds(
     slices: readonly PlanStub[],
@@ -334,6 +363,7 @@ function decideScaffolds(
     vocabulary: readonly VocabularyEntry[],
     declared: readonly string[],
     handoffOnly: ReadonlySet<string>,
+    deferred: ReadonlyMap<string, number>,
 ): Map<number, string[]> {
     const rank: Map<string, number> = new Map(vocabulary.map((entry, index) => [entry.id, index]));
     const learners: PlanStub[] = slices.filter((stub) => stub.builds === "learner" && stub.story !== undefined);
@@ -366,6 +396,7 @@ function decideScaffolds(
     const scaffolds: Map<number, string[]> = new Map();
     for (const { story, concept } of needed) {
         if (handoffOnly.has(concept)) continue;
+        if (!introducers.has(concept) && deferred.has(concept)) continue;
         // The lowest-numbered introducer the graph still permits to go first. An introducer this
         // slice already blocks would close a cycle, so it is passed over rather than forced.
         const introducer: number | undefined = (introducers.get(concept) ?? []).find((candidate) => candidate !== story && !blocks(story, candidate));
@@ -556,7 +587,9 @@ function placeHandoffs(slices: readonly PlanStub[], order: readonly PlanStub[], 
  *
  * - A concept **no slice of the roadmap introduces** is not faulted (invariant 26). Every roadmap's
  *   first slices stand on background no story teaches and no five-question interview enumerated, so
- *   faulting that would make a realistic roadmap unplannable. Story #559 teaches it with a scaffold.
+ *   faulting that would make a realistic roadmap unplannable. Story #559 teaches it with a scaffold,
+ *   unless an unplanned epic will introduce it: then it waits on that epic, and the verdict records
+ *   it beside the epic and the slice that assumes it, so the gate can show it (record #105).
  * - A concept an **earlier** learner slice introduces is covered, whatever order it arrived in.
  *
  * A gap whose concept only a **handed-off** story would introduce names that story (invariant 32).
@@ -574,7 +607,12 @@ function handoffOnly(slices: readonly PlanStub[], handoffConcepts: ReadonlyMap<n
     return new Set([...handoffConcepts.values()].flat().filter((id) => !byLearner.has(id)));
 }
 
-function checkCoverage(slices: readonly PlanStub[], declared: readonly string[], handoffConcepts: ReadonlyMap<number, readonly string[]>): CoverageVerdict {
+function checkCoverage(
+    slices: readonly PlanStub[],
+    declared: readonly string[],
+    handoffConcepts: ReadonlyMap<number, readonly string[]>,
+    unplanned: readonly UnplannedConcepts[],
+): CoverageVerdict {
     const fromHandoff: Map<string, number> = new Map();
     for (const story of [...handoffConcepts.keys()].sort((a, b) => a - b)) {
         for (const id of handoffConcepts.get(story) ?? []) if (!fromHandoff.has(id)) fromHandoff.set(id, story);
@@ -582,6 +620,8 @@ function checkCoverage(slices: readonly PlanStub[], declared: readonly string[],
     const anywhere: Set<string> = new Set(slices.flatMap((stub) => stub.concepts));
     const satisfied: Set<string> = new Set(declared);
     const gaps: CoverageGap[] = [];
+    const deferred: Map<string, number> = waitsOn(unplanned);
+    const waiting: WaitingConcept[] = [];
 
     for (const stub of slices) {
         if (stub.builds !== "learner") continue;
@@ -591,12 +631,20 @@ function checkCoverage(slices: readonly PlanStub[], declared: readonly string[],
             // A concept nothing on the roadmap introduces is scaffolded, not faulted; one an earlier
             // slice introduced is already satisfied. What is left is a plan that put an introducer
             // out of reach.
-            if (handedOff === undefined && !anywhere.has(id)) continue;
+            if (handedOff === undefined && !anywhere.has(id)) {
+                // Background no member introduces is scaffolded; background an unplanned epic will
+                // introduce waits on that epic, and is recorded so the gate can name it (record #105).
+                const epic: number | undefined = deferred.get(id);
+                if (epic !== undefined && stub.story !== undefined && !waiting.some((entry) => entry.concept === id && entry.story === stub.story)) {
+                    waiting.push({ concept: id, story: stub.story, epic });
+                }
+                continue;
+            }
             gaps.push(handedOff === undefined ? { concept: id, story: stub.story } : { concept: id, story: stub.story, handedOff });
         }
         for (const id of stub.concepts) satisfied.add(id);
     }
-    return { clean: gaps.length === 0, gaps };
+    return { clean: gaps.length === 0, gaps, ...(waiting.length === 0 ? {} : { waiting }) };
 }
 
 /**
@@ -628,12 +676,13 @@ export function rewritePlan(draft: PlanDraft, options: RewriteOptions = {}): Pla
             draft.vocabulary ?? [],
             [...declaredConcepts, ...taught],
             handoffOnly(source, options.handoffConcepts ?? new Map()),
+            waitsOn(options.unplanned ?? []),
         );
         const order: PlanStub[] = orderLearnerSlices(source, blockers, scaffolds);
         slices = placeHandoffs(source, continueParts(splitOverLimit(order, draft.vocabulary ?? []), rest.offsets), direct);
     }
     slices = [...carried, ...slices];
-    return { ...draft, slices, coverage: checkCoverage(slices, declaredConcepts, options.handoffConcepts ?? new Map()) };
+    return { ...draft, slices, coverage: checkCoverage(slices, declaredConcepts, options.handoffConcepts ?? new Map(), options.unplanned ?? []) };
 }
 
 /** Number the parts of a partly taught story on from the last part already taught. */
@@ -649,6 +698,11 @@ function continueParts(slices: readonly PlanStub[], offsets: ReadonlyMap<number,
  * verdict it carries. The approval gate refuses a draft whose recorded verdict this disagrees with,
  * because the draft is a file an agent can write (record #591, invariant 12).
  */
-export function recheckCoverage(draft: PlanDraft, handoffConcepts: ReadonlyMap<number, readonly string[]> = new Map(), introduced: readonly string[] = []): CoverageVerdict {
-    return checkCoverage(draft.slices, [...(draft.declared ?? []).map((entry) => entry.concept), ...introduced], handoffConcepts);
+export function recheckCoverage(
+    draft: PlanDraft,
+    handoffConcepts: ReadonlyMap<number, readonly string[]> = new Map(),
+    introduced: readonly string[] = [],
+    unplanned: readonly UnplannedConcepts[] = [],
+): CoverageVerdict {
+    return checkCoverage(draft.slices, [...(draft.declared ?? []).map((entry) => entry.concept), ...introduced], handoffConcepts, unplanned);
 }

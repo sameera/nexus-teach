@@ -8,10 +8,15 @@
  * coverage is checked again over the draft's slices, and a verdict the fresh check contradicts is
  * refused exactly as a gap is (record #591, invariants 10–12). The same refusal runs when the gate is
  * printed and again when the approval is written.
+ *
+ * The concepts the plan leaves to an unplanned epic are held to the same rule (record #105). The
+ * decision not to scaffold one lives on the draft, so a list recomputed at the gate alone could
+ * disagree with it after an epic body is edited, and the concept would be neither taught nor shown.
+ * A recorded list a fresh check contradicts is refused like a gap.
  */
 
-import { type CoverageGap, type CoverageVerdict, type PlanDraft, type PlanStub } from "./plan-draft.js";
-import { recheckCoverage, rewritePlan, type RewriteOptions } from "./plan-rewrite.js";
+import { type CoverageGap, type CoverageVerdict, type PlanDraft, type PlanStub, type WaitingConcept } from "./plan-draft.js";
+import { recheckCoverage, rewritePlan, type RewriteOptions, type UnplannedConcepts } from "./plan-rewrite.js";
 import { type UnplannedMember } from "./workbook-plan.js";
 
 export type CoverageRefusal = { refused: false } | { refused: true; gaps: CoverageGap[]; report: string };
@@ -28,17 +33,28 @@ function sameGaps(a: readonly CoverageGap[], b: readonly CoverageGap[]): boolean
     return JSON.stringify(a.map(key).sort()) === JSON.stringify(b.map(key).sort());
 }
 
+function describeWaiting(entry: WaitingConcept): string {
+    return `  #${entry.story} assumes ${entry.concept}, which the unplanned epic #${entry.epic} will introduce.`;
+}
+
+function sameWaiting(a: readonly WaitingConcept[], b: readonly WaitingConcept[]): boolean {
+    const key = (entry: WaitingConcept): string => `${entry.story}:${entry.concept}:${entry.epic}`;
+    return JSON.stringify(a.map(key).sort()) === JSON.stringify(b.map(key).sort());
+}
+
 /**
  * Refuse a draft that carries no coverage verdict, whose verdict names a gap, or whose verdict a fresh
  * check contradicts. The report names every gap the fresh check finds, so a hand-set clean verdict is
- * refused with the gaps it was hiding.
+ * refused with the gaps it was hiding. A clean verdict whose list of concepts waiting on an unplanned
+ * epic a fresh check contradicts is refused too, naming what the fresh check finds.
  */
 export function refuseUncleanCoverage(
     draft: PlanDraft,
     handoffConcepts: ReadonlyMap<number, readonly string[]> = new Map(),
     introduced: readonly string[] = [],
+    unplanned: readonly UnplannedConcepts[] = [],
 ): CoverageRefusal {
-    const fresh: CoverageVerdict = recheckCoverage(draft, handoffConcepts, introduced);
+    const fresh: CoverageVerdict = recheckCoverage(draft, handoffConcepts, introduced, unplanned);
     const recorded: CoverageVerdict | undefined = draft.coverage;
     const gaps: CoverageGap[] = fresh.gaps.length > 0 ? fresh.gaps : (recorded?.gaps ?? []);
     let lead: string | null = null;
@@ -48,6 +64,18 @@ export function refuseUncleanCoverage(
         lead = `the draft's coverage verdict names ${recorded.gaps.length} gap${recorded.gaps.length === 1 ? "" : "s"}.`;
     } else if (!fresh.clean || !sameGaps(fresh.gaps, recorded.gaps)) {
         lead = "the draft's recorded coverage verdict is clean, and a fresh check over its slices is not.";
+    } else if (!sameWaiting(fresh.waiting ?? [], recorded.waiting ?? [])) {
+        const waiting: WaitingConcept[] = fresh.waiting ?? [];
+        return {
+            refused: true,
+            gaps: [],
+            report: [
+                "Approval refused: the draft's recorded list of concepts waiting on an unplanned epic is not what a fresh check " +
+                    "finds. An unplanned epic was read again or its list changed since the rewrite; run the rewrite again.",
+                ...(waiting.length === 0 ? ["  A fresh check finds no concept waiting on an unplanned epic."] : waiting.map(describeWaiting)),
+                "Nothing in the committed workbook was written.",
+            ].join("\n"),
+        };
     }
     if (lead === null) return { refused: false };
     return {
@@ -113,8 +141,16 @@ export function renderGateDigest(draft: PlanDraft, context: GateContext): string
     const boundary: GateBoundary | undefined = context.boundary;
     if (boundary !== undefined && boundary.unplanned.length > 0) {
         const covered: number = boundary.members - boundary.unplanned.length;
+        // A concept the plan left to an unplanned epic sits under that epic, beside the slice that
+        // assumes it — the lesson that runs without it (record #105). Nothing is added when none waits.
+        const waiting: WaitingConcept[] = draft.coverage?.waiting ?? [];
         lines.push("", "Past the planning boundary — epics nobody has planned yet, in roadmap order:");
-        lines.push(...boundary.unplanned.map((member) => `  #${member.epic} — ${JSON.stringify(member.title)}`));
+        for (const member of boundary.unplanned) {
+            lines.push(`  #${member.epic} — ${JSON.stringify(member.title)}`);
+            for (const entry of waiting.filter((w) => w.epic === member.epic)) {
+                lines.push(`      waits on it: ${entry.concept} — assumed by #${entry.story}, which is taught before it`);
+            }
+        }
         lines.push(
             `The plan covers ${covered} of the roadmap's ${boundary.members} members. ` +
             (boundary.unplanned.length === 1
@@ -122,6 +158,12 @@ export function renderGateDigest(draft: PlanDraft, context: GateContext): string
                 : `The ${boundary.unplanned.length} epics named above are the ones it did not plan; `) +
             "approving it approves a partial plan.",
         );
+        if (waiting.length > 0) {
+            lines.push(
+                "A concept listed under an epic is one that epic will introduce. No slice teaches it and no scaffold was " +
+                    "inserted for it, so the slice named beside it is taught without it. Planning that epic first teaches it with its work.",
+            );
+        }
     }
     return lines.join("\n");
 }

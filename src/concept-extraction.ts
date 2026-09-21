@@ -35,6 +35,13 @@
  * and a story added afterwards would be handed off for that reason alone. A verdict's reason is a
  * personal record, so it goes through the guarded learner-folder write and onto no stub.
  *
+ * An unplanned member of the roadmap is read by the same unit, once, from its own title and body
+ * (epic #88, record #105). It gets no focus and returns no verdict, and only what it introduces is
+ * kept: what it assumes cannot change the current plan. Its list is kept against its text like a
+ * story's, and it joins the merge only as aliases of names a planned story proposed — so an unplanned
+ * epic can never rename an identifier a written lesson carries. It never becomes a story, a stub or a
+ * slice; it only tells the rewrite which background concepts to leave to that epic.
+ *
  * Everything else here is derived and git-ignored: the checked lists sit beside the roadmap they
  * were extracted from, and nothing reaches the committed workbook or the issue graph. Nothing here
  * builds a slice, writes a handoff prompt or starts a coding-agent session.
@@ -48,7 +55,8 @@ import { type Runner, defaultRunner } from "@nexus/workspace/run";
 import { readInterview, type InterviewRecord } from "./interview.js";
 import { readLearnerRecord, writeLearnerRecord } from "./learner-store.js";
 import { CONCEPT_IDENTIFIER, writePlanDraft, type PlanStub, type VocabularyEntry } from "./plan-draft.js";
-import { hasPlannedMember, nothingPlannedYet, roadmapPath, type Roadmap, type RoadmapStory } from "./roadmap.js";
+import { type UnplannedConcepts } from "./plan-rewrite.js";
+import { hasPlannedMember, nothingPlannedYet, roadmapPath, type Roadmap, type RoadmapMember, type RoadmapStory } from "./roadmap.js";
 
 /** How much one list may carry. "A short structured list" is a size a check can hold a list to. */
 export const EXTRACTION_LIMITS = { entries: 12, identifier: 48, gloss: 160 } as const;
@@ -282,15 +290,143 @@ export function readExtractions(repoRoot: string, roadmap: Roadmap): ExtractionS
     return { current, missing };
 }
 
+/** A list taken from an unplanned epic: only what it will introduce, kept against the text it was read from. */
+export interface EpicList {
+    epic: number;
+    /** The digest of the epic's title and body when it was read. An edited epic is read again. */
+    text: string;
+    introduces: ProposedConcept[];
+}
+
+export type EpicCheckResult = { ok: true; list: EpicList } | { ok: false; problem: string };
+
+/** The fields an unplanned epic's list may carry. It is asked for no verdict, so it carries none. */
+const EPIC_LIST_FIELDS: readonly string[] = ["epic", "introduces", "assumes", "nothing"];
+
+/** The digest an unplanned epic's list is kept against: a changed title or body gets a new one. */
+export function epicDigest(member: RoadmapMember): string {
+    return createHash("sha256").update(JSON.stringify([member.title, member.body ?? ""])).digest("hex");
+}
+
+/**
+ * Check what one subagent handed back for one unplanned epic. The same shape and size rules as a
+ * story's list, with no verdict; what the epic assumes is checked and then dropped (record #105).
+ * An explicit "introduces nothing" is accepted, and a bare empty return is no readable list.
+ */
+export function checkEpicExtraction(raw: unknown, member: RoadmapMember): EpicCheckResult {
+    const record: Record<string, unknown> | null = asRecord(raw);
+    if (record === null) return { ok: false, problem: "what came back is not a list of concepts." };
+    const extra: string[] = Object.keys(record).filter((key) => !EPIC_LIST_FIELDS.includes(key));
+    if (extra.length > 0) {
+        return { ok: false, problem: `the list carries ${shownKeys(extra)}, which an unplanned epic's list does not. No verdict is asked of an unplanned epic.` };
+    }
+    if (record["epic"] !== member.number) return { ok: false, problem: `the list names epic ${shown(record["epic"])}, not #${member.number}.` };
+
+    const introduces = readEntries(record["introduces"], "introduces");
+    if (!introduces.ok) return introduces;
+    const assumes = readEntries(record["assumes"], "assumes");
+    if (!assumes.ok) return assumes;
+    const both: string[] = assumes.entries.filter((a) => introduces.entries.some((i) => i.id === a.id)).map((a) => a.id);
+    if (both.length > 0) return { ok: false, problem: `${both.join(", ")} is listed as both introduced and assumed.` };
+
+    const nothing: unknown = record["nothing"];
+    if (nothing !== undefined && typeof nothing !== "boolean") return { ok: false, problem: "'nothing' is true or false." };
+    if (introduces.entries.length === 0 && nothing !== true) {
+        return {
+            ok: false,
+            problem: "the list introduces nothing. An epic that introduces nothing says so with 'nothing: true'; a bare empty return reads as a failed extraction.",
+        };
+    }
+    if (introduces.entries.length > 0 && nothing === true) return { ok: false, problem: "the list says 'nothing: true' and names concepts anyway." };
+    return { ok: true, list: { epic: member.number, text: epicDigest(member), introduces: introduces.entries } };
+}
+
+function epicListPath(repoRoot: string, roadmap: string, epic: number): string {
+    return path.join(extractionsDir(repoRoot, roadmap), `epic-${epic}.json`);
+}
+
+/** The roadmap's unplanned members, in its own member order. */
+function unplannedOf(roadmap: Roadmap): RoadmapMember[] {
+    return roadmap.members.filter((member) => member.kind === "unplanned");
+}
+
+/**
+ * Check one subagent's output for an unplanned epic and keep it. Output that fails the check removes
+ * whatever an earlier attempt left for that epic, as it does for a story.
+ */
+export function recordEpicExtraction(repoRoot: string, roadmap: Roadmap, epic: number, output: string): EpicCheckResult {
+    const member: RoadmapMember | undefined = unplannedOf(roadmap).find((m) => m.number === epic);
+    if (member === undefined) return { ok: false, problem: `#${epic} is not an unplanned epic on the roadmap ${roadmap.name}.` };
+    const target: string = epicListPath(repoRoot, roadmap.name, epic);
+    let raw: unknown;
+    try {
+        raw = parse(output);
+    } catch {
+        raw = null;
+    }
+    const result: EpicCheckResult = checkEpicExtraction(raw, member);
+    if (!result.ok) {
+        fs.rmSync(target, { force: true });
+        return result;
+    }
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, `${JSON.stringify(result.list, null, 4)}\n`);
+    return result;
+}
+
+/** Every unplanned epic's list as it stands. A fully planned roadmap has none to read, and reads none. */
+export interface EpicExtractionState {
+    /** Checked lists taken from the epic's current text, in roadmap member order. */
+    current: EpicList[];
+    /** Unplanned epics with no list, an unreadable one, or one taken from text that has since changed. */
+    missing: number[];
+}
+
+export function readEpicExtractions(repoRoot: string, roadmap: Roadmap): EpicExtractionState {
+    const current: EpicList[] = [];
+    const missing: number[] = [];
+    for (const member of unplannedOf(roadmap)) {
+        const target: string = epicListPath(repoRoot, roadmap.name, member.number);
+        let list: EpicList | null = null;
+        try {
+            list = fs.existsSync(target) ? (JSON.parse(fs.readFileSync(target, "utf8")) as EpicList) : null;
+        } catch {
+            list = null;
+        }
+        if (list !== null && list.epic === member.number && list.text === epicDigest(member)) current.push(list);
+        else missing.push(member.number);
+    }
+    return { current, missing };
+}
+
+/**
+ * What each unplanned epic will introduce, under the identifiers the draft's vocabulary keeps, in
+ * roadmap member order. A name the vocabulary does not hold — one only epics proposed — is dropped:
+ * no planned slice mentions it, so it cannot change the plan.
+ */
+export function unplannedConcepts(lists: readonly EpicList[], vocabulary: readonly VocabularyEntry[]): UnplannedConcepts[] {
+    const kept: Map<string, string> = new Map();
+    for (const entry of vocabulary) {
+        kept.set(entry.id, entry.id);
+        for (const alias of entry.aliases) kept.set(alias, entry.id);
+    }
+    return lists.map((list) => ({
+        epic: list.epic,
+        concepts: [...new Set(list.introduces.flatMap((entry) => (kept.has(entry.id) ? [kept.get(entry.id) as string] : [])))],
+    }));
+}
+
 /** One proposed identifier as the merge step reads it: the name, what it was said to mean, and by whom. */
 export interface ProposedIdentifier {
     id: string;
     glosses: string[];
     stories: number[];
+    /** The unplanned epics that proposed it. Present only when one did, so a fully planned roadmap's vocabulary is unchanged. */
+    epics?: number[];
 }
 
 /** Every identifier the lists propose, with its glosses — the only material the merge step reads. */
-export function proposedVocabulary(lists: readonly CheckedList[]): ProposedIdentifier[] {
+export function proposedVocabulary(lists: readonly CheckedList[], epicLists: readonly EpicList[] = []): ProposedIdentifier[] {
     const byId: Map<string, ProposedIdentifier> = new Map();
     for (const list of lists) {
         for (const entry of [...list.introduces, ...list.assumes]) {
@@ -298,6 +434,15 @@ export function proposedVocabulary(lists: readonly CheckedList[]): ProposedIdent
             if (!found.glosses.includes(entry.gloss)) found.glosses.push(entry.gloss);
             if (!found.stories.includes(list.story)) found.stories.push(list.story);
             byId.set(entry.id, found);
+        }
+    }
+    for (const list of epicLists) {
+        for (const entry of list.introduces) {
+            const found: ProposedIdentifier = byId.get(entry.id) ?? { id: entry.id, glosses: [], stories: [] };
+            if (!found.glosses.includes(entry.gloss)) found.glosses.push(entry.gloss);
+            const epics: number[] = found.epics ?? [];
+            if (!epics.includes(list.epic)) epics.push(list.epic);
+            byId.set(entry.id, { ...found, epics });
         }
     }
     return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
@@ -308,11 +453,19 @@ export type MergeResult = { ok: true; mapping: Map<string, string>; vocabulary: 
 /**
  * Apply the session's merge. Each group is a list of proposed identifiers naming one concept, and
  * its first entry is the identifier kept. Every proposed identifier appears in exactly one group.
+ *
+ * A name only an unplanned epic proposed is never the one kept where a planned story's name shares
+ * its group: the first planned name is kept instead, and the epic's names become its aliases. A
+ * re-approval refuses a draft that renames an identifier a written lesson carries, so an epic name
+ * winning a group could refuse a workbook only because an epic was added to the roadmap (record
+ * #105). A group of epic names alone names a concept no planned slice mentions, so it enters neither
+ * the vocabulary nor the mapping.
  */
 export function applyMerge(proposed: readonly ProposedIdentifier[], groups: unknown): MergeResult {
     if (!Array.isArray(groups)) return { ok: false, problem: "the merge names no groups of identifiers." };
     const known: Map<string, ProposedIdentifier> = new Map(proposed.map((p) => [p.id, p]));
     const mapping: Map<string, string> = new Map();
+    const grouped: Set<string> = new Set();
     const vocabulary: VocabularyEntry[] = [];
 
     for (const group of groups) {
@@ -322,15 +475,18 @@ export function applyMerge(proposed: readonly ProposedIdentifier[], groups: unkn
             if (!known.has(id)) {
                 return { ok: false, problem: `the merge names ${id}, which no list proposed. A merge combines proposed identifiers and never invents one.` };
             }
-            if (mapping.has(id)) {
+            if (grouped.has(id)) {
                 return { ok: false, problem: `the merge places ${id} in two groups. A merge combines concepts and never splits one.` };
             }
-            mapping.set(id, ids[0]);
+            grouped.add(id);
         }
-        vocabulary.push({ id: ids[0], gloss: (known.get(ids[0]) as ProposedIdentifier).glosses[0], aliases: ids.slice(1) });
+        const keep: string | undefined = ids.find((id) => (known.get(id) as ProposedIdentifier).stories.length > 0);
+        if (keep === undefined) continue;
+        for (const id of ids) mapping.set(id, keep);
+        vocabulary.push({ id: keep, gloss: (known.get(keep) as ProposedIdentifier).glosses[0], aliases: ids.filter((id) => id !== keep) });
     }
 
-    const unmapped: string[] = proposed.map((p) => p.id).filter((id) => !mapping.has(id));
+    const unmapped: string[] = proposed.map((p) => p.id).filter((id) => !grouped.has(id));
     if (unmapped.length > 0) {
         return { ok: false, problem: `the merge leaves ${unmapped.join(", ")} unmapped. Every proposed identifier belongs to exactly one group.` };
     }
@@ -382,7 +538,20 @@ export function draftFromExtractions(
         };
     }
 
-    const merge: MergeResult = applyMerge(proposedVocabulary(current), groups);
+    // An unplanned epic with no readable list stops the pass as a story's does: falling back to
+    // "introduces nothing" would silently bring back the scaffold the list exists to hold back.
+    const epics: EpicExtractionState = readEpicExtractions(repoRoot, roadmap);
+    if (epics.missing.length > 0) {
+        return {
+            ok: false,
+            failed: epics.missing,
+            problem:
+                `no readable list for the unplanned ${epics.missing.length === 1 ? "epic" : "epics"} ${epics.missing.map((n) => `#${n}`).join(", ")}, ` +
+                `so no stub was written. Extract ${epics.missing.length === 1 ? "that epic" : "those epics"} again with --epic and re-run.`,
+        };
+    }
+
+    const merge: MergeResult = applyMerge(proposedVocabulary(current, epics.current), groups);
     if (!merge.ok) return { ok: false, problem: `${merge.problem} No stub was written.`, failed: [] };
 
     const slices: PlanStub[] = current.map((list): PlanStub => {

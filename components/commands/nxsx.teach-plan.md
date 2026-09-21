@@ -104,8 +104,11 @@ nxsx workbook extract <name>
 
 This prints the story numbers still to extract — every story on a first run; on a re-run, only the
 ones whose list failed or whose text has changed. Only a planned member has stories, so an epic
-nobody has planned yet is never listed and this phase and every later one run over the planned
-members alone. It stops before any subagent starts when the roadmap has no interview, and when no
+nobody has planned yet is never listed as a story and never becomes a slice.
+
+When the roadmap holds epics nobody has planned yet, it also prints `extractEpics`: those epics still
+to read. Each is read once too, from its own title and body, so the plan can leave a concept that
+epic will introduce to it instead of teaching it early as background. It stops before any subagent starts when the roadmap has no interview, and when no
 member of the roadmap is planned — there is nothing to plan yet, and no draft is written; report
 either as it stands and stop.
 
@@ -115,14 +118,19 @@ read about the story. Its list reaches you only through the toolkit's check. A s
 a refused list has produced no readable list for that story: do not repair the list or write one
 yourself.
 
+Start one more `nxsx-concept-extractor` subagent per listed unplanned epic, in the same batch. Give
+each **only** the roadmap name and the epic number, and say it is an epic: it runs
+`nxsx workbook extract <name> --epic <n>`. The same rules hold — its list reaches you only through
+the check, and a refused list is not repaired.
+
 # Phase 4 — Merge the concept vocabulary
 
 ```bash
 nxsx workbook vocabulary <name>
 ```
 
-This prints every proposed identifier with its one-line glosses. Code has already settled spelling and
-case. Your judgement is synonyms: decide which identifiers name the same concept and pick one to keep.
+This prints every proposed identifier with its one-line glosses, and which stories — or which
+unplanned epics, under `epics` — proposed it. Code has already settled spelling and case. Your judgement is synonyms: decide which identifiers name the same concept and pick one to keep.
 Combine only — never invent an identifier, and never put one identifier in two groups. Write every
 identifier into exactly one group, singletons included, with the kept identifier first:
 
@@ -131,6 +139,11 @@ concepts:
     - [pinned-state, pin-snapshot]
     - [drift]
 ```
+
+A name only an unplanned epic proposed is never kept over a story's name: in a group that holds both,
+code keeps the first name a story proposed, and the epic's names become its aliases. A group of epic
+names alone names a concept no planned story mentions, so it drops out of the draft's vocabulary.
+Still write it as its own group — every identifier belongs to one.
 
 # Phase 5 — Write the draft
 
@@ -153,7 +166,8 @@ lesson, so it never becomes a page. Its story was still extracted and merged, an
 vocabulary keeps every name the merge folded into a concept as an alias, so the concepts it would have
 introduced still lead to the identifier a learner slice uses. Write no list of the slices a handoff must leave
 alone: when the plan is taught, every other slice in it is one of them. If any story has no readable list, nothing is written and every
-failed story is named: run Phase 3 again, which extracts only those, then this phase. Never write or
+failed story is named: run Phase 3 again, which extracts only those, then this phase. An unplanned
+epic with no readable list stops this phase the same way, and is named. Never write or
 edit the draft by hand, never commit it, and never write into the committed workbook.
 
 # Phase 6 — Rewrite the draft
@@ -225,6 +239,13 @@ argues down, one scaffold at a time. A concept no story on the roadmap introduce
 scaffolded too; a concept only a handed-off story would introduce never is, because that is the focus
 boundary being wrong and a scaffold would hide it.
 
+**Concepts left to an unplanned epic.** A concept no planned story introduces that an unplanned
+epic's list does is not scaffolded: the learner meets it in that epic, beside the work that makes it
+concrete. It is not a gap either. The draft records it, with the first such epic in roadmap order and
+the slice that assumes it, and the gate shows it. This replaces only the background case: a concept a
+planned learner story introduces too late is still scaffolded, and one a handed-off story introduces
+is still a gap.
+
 **Handoffs.** Each handoff is then placed immediately before the earliest learner slice it unblocks,
 and several handoffs for one slice form one block before it. Nothing is built for the learner until
 the step that needs it — handing a coding agent the whole non-focus half of a roadmap at the start
@@ -234,9 +255,9 @@ start no coding-agent session here.
 
 **Coverage.** The pass then checks the finished plan, last, and names every gap rather than only the
 first. A gap is a bug in the plan, and it is catchable here — before a word of any lesson is written.
-Two readings are deliberately not gaps: a concept no story on the roadmap introduces at all is
-background the plan teaches for itself, and a concept an earlier learner slice already introduced is
-covered however the order arrived at it.
+Three readings are deliberately not gaps: a concept no story on the roadmap introduces at all is
+background the plan teaches for itself, a concept an unplanned epic will introduce waits on that epic,
+and a concept an earlier learner slice already introduced is covered however the order arrived at it.
 
 A gap that names a **handed-off** story is the focus boundary drawn in the wrong place, not a fault
 in the concept lists: a learner slice is assuming something the plan decided the learner will not
@@ -262,7 +283,8 @@ shown, naming every gap. Report a refusal as it stands and **stop**.
 Otherwise the command prints the gate: every slice in order with its mark, each split story with its
 parts, each scaffold beside the slice that forced it, each concept the declaration removed beside the
 learner's phrase, the phrases that matched nothing, and whether the focus matched no story. When the
-roadmap holds epics nobody has planned yet, it ends by naming each of them, in roadmap order, and
+roadmap holds epics nobody has planned yet, it ends by naming each of them, in roadmap order — with,
+under each, any concept the plan left to it and the slice that is taught without it — and
 saying how many of the roadmap's members the plan covers: the reviewer is approving a partial plan,
 and approval is not refused for that alone. Show it to
 the reviewer **word for word**. Do not summarise it, reorder it or leave a line out — the print is code's
