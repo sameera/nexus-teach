@@ -51,6 +51,7 @@ import {
     type PinningTestRequest,
     type StagedLesson,
 } from "./lesson-writer.js";
+import { planningBoundary, renderBoundaryReport, type PlanningBoundary } from "./planning-boundary.js";
 import { gateNextLesson, type DriftFinding, type IssueReader, type LessonGate, type TeachingPlan } from "./teaching-plan.js";
 import { sliceId, sliceLabel, toTeachingPlan, type PlanSliceRecord, type WorkbookPlan } from "./workbook-plan.js";
 import {
@@ -103,6 +104,7 @@ export type SessionOutcome =
     | { kind: "brief"; brief: LessonBrief; report: string }
     | { kind: "written"; story?: number; lesson: string; page: string; report: string }
     | { kind: "open"; story?: number; lesson: string; page: string; report: string }
+    | { kind: "plan-next"; epic: number; title: string; remaining: number; report: string }
     | { kind: "done"; report: string };
 
 export interface SessionResult {
@@ -519,6 +521,26 @@ export function runTeachingSession(inputs: SessionInputs): SessionResult {
     }
 
     if (arrival.kind === "done") {
+        // Nothing is left to teach — but a plan written from a roadmap that was still growing says
+        // so beside the epics it did not plan, and a learner standing at that boundary is owed the
+        // next planning decision rather than the finished report (record #95). The question is
+        // asked here and nowhere earlier: after the sweep, the suite, any handoff return and the
+        // fence, so a boundary verdict can never be reported out of a tree that cannot build.
+        const boundary: PlanningBoundary | null = planningBoundary(plan.unplanned);
+        if (boundary !== null) {
+            return {
+                outcome: {
+                    kind: "plan-next",
+                    epic: boundary.next.epic,
+                    title: boundary.next.title,
+                    remaining: boundary.remaining,
+                    report: renderBoundaryReport(slug, boundary),
+                },
+                drift: [],
+                skipped,
+                notes,
+            };
+        }
         return {
             outcome: { kind: "done", report: `Every slice of ${slug} has been taught and finished.` },
             drift: [],
