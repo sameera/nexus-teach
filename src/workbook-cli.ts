@@ -69,6 +69,7 @@ import { defaultOutPath } from "@nexus/epic-resolve/write";
 import { parseAuthoredSources, pinSources, type AuthoredSources, type DecisionRecordState, type PinningResult } from "./source-pinning.js";
 import { resolveWorkspace } from "@nexus/workspace/resolve";
 import { type FetchRecordResult, fetchRecord } from "@nexus/record-digest/fetch";
+import { type RecordLookup, type RecordReader } from "./record-owed.js";
 
 /** The subverbs `nexus workbook` dispatches. */
 export const WORKBOOK_SUBVERBS: readonly string[] = [
@@ -903,32 +904,52 @@ function changeMark(repoRoot: string, roadmap: Roadmap, draft: PlanDraft, flags:
 }
 
 /**
- * The decision record of an epic this session already resolved, read live. The record's number comes
+ * The decision record of an epic this checkout already resolved, read live. The record's number comes
  * from the epic the resolver materialized — the one reconstruction every stage shares — and its approval
  * and body come from the issue graph now, so a record approved after the resolve still counts.
  *
  * The epic and its record belong to the pipeline, not the workbook: in a workspace they live in the hub
  * while the workbook lives in a member, so both are read from the hub. Approval is the record fetch's own
  * reading, so a record closed as not planned is a withdrawn design and pins nothing.
+ *
+ * One lookup serves both callers: the verb that pins sources, and the seam the teaching session asks
+ * its record question through. Two lookups would be two answers about one epic (record #100).
  */
-function resolvedRecord(repoRoot: string, epic: number, io: WorkbookCliIo, run: Runner): { found: boolean; record: DecisionRecordState | null } {
+function lookupRecord(repoRoot: string, epic: number, run: Runner): RecordLookup {
     const resolved = resolveWorkspace(repoRoot);
     const pipelineRoot: string = resolved.ok && resolved.workspace.mode === "workspace" ? resolved.workspace.hubRoot : repoRoot;
     const materialized: string = defaultOutPath(pipelineRoot, epic);
     if (!fs.existsSync(materialized)) {
-        io.stderr(`epic #${epic} has not been resolved in ${pipelineRoot}. Run 'nexus epic-resolve --epic ${epic}' first — nothing was pinned.`);
-        return { found: false, record: null };
+        return { kind: "unreadable", detail: `epic #${epic} has not been resolved in ${pipelineRoot}. Run 'nexus epic-resolve --epic ${epic}' first` };
     }
     const front: RegExpMatchArray | null = fs.readFileSync(materialized, "utf8").match(/^---\n([\s\S]*?)\n---/);
     const meta: Record<string, unknown> = ((front === null ? null : parse(front[1])) as Record<string, unknown> | null) ?? {};
     const number: number = Number(String(meta["record"] ?? "").replace(/^#/, ""));
-    if (!Number.isInteger(number) || number <= 0) return { found: true, record: null };
+    if (!Number.isInteger(number) || number <= 0) return { kind: "read", record: null };
     const fetched: FetchRecordResult = fetchRecord(run, pipelineRoot, number);
     if (!fetched.ok) {
-        io.stderr(`decision record #${number} for epic #${epic} could not be read, so its approval is unknown — nothing was pinned.`);
+        return { kind: "unreadable", detail: `decision record #${number} for epic #${epic} could not be read, so its approval is unknown` };
+    }
+    return { kind: "read", record: { number, approved: fetched.record.approved, body: fetched.record.body } };
+}
+
+/**
+ * The seam the teaching session asks its record question through. It is the same lookup the pinning
+ * step uses, so the session's stop and that step's refusal can never disagree about one epic
+ * (record #100, invariant 3), and the session itself still fetches nothing.
+ */
+function ghRecordReader(repoRoot: string, run: Runner): RecordReader {
+    return (epic: number): RecordLookup => lookupRecord(repoRoot, epic, run);
+}
+
+/** The same lookup, reported the way the pinning verb reports it: a refusal that pinned nothing. */
+function resolvedRecord(repoRoot: string, epic: number, io: WorkbookCliIo, run: Runner): { found: boolean; record: DecisionRecordState | null } {
+    const lookup: RecordLookup = lookupRecord(repoRoot, epic, run);
+    if (lookup.kind === "unreadable") {
+        io.stderr(`${lookup.detail} — nothing was pinned.`);
         return { found: false, record: null };
     }
-    return { found: true, record: { number, approved: fetched.record.approved, body: fetched.record.body } };
+    return { found: true, record: lookup.record };
 }
 
 /**
@@ -1059,6 +1080,7 @@ export function runWorkbookCli(argv: string[], io: WorkbookCliIo, run: Runner = 
                     repoRoot,
                     slug,
                     read: ghIssueReader(repoRoot, run),
+                    readRecord: ghRecordReader(repoRoot, run),
                     prose: flags.prose === undefined ? undefined : readProse(flags.prose),
                     run,
                 }),

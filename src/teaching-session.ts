@@ -59,6 +59,7 @@ import {
     type PlanningBoundary,
     type PlanningBriefContext,
 } from "./planning-boundary.js";
+import { recordOwed, renderRecordOwedReport, type RecordReader, type RecordVerdict } from "./record-owed.js";
 import { gateNextLesson, type DriftFinding, type IssueReader, type LessonGate, type TeachingPlan } from "./teaching-plan.js";
 import { sliceId, sliceLabel, toTeachingPlan, type PlanSliceRecord, type WorkbookPlan } from "./workbook-plan.js";
 import {
@@ -91,6 +92,12 @@ export interface SessionInputs {
     slug: string;
     /** Reads a story's live issue state. The session never fetches it itself. */
     read: IssueReader;
+    /**
+     * Reads one epic's decision record, for the one slice the session arrives at. Handed in for the
+     * same reason the story reader is: the session reaches nothing itself (record #100, invariant 5).
+     * Absent leaves the check unable to run, which teaches rather than stops (invariant 4).
+     */
+    readRecord?: RecordReader;
     /** The prose an agent wrote for the lesson the previous run briefed. */
     prose?: AuthoredProse;
     run?: Runner;
@@ -112,6 +119,7 @@ export type SessionOutcome =
     | { kind: "written"; story?: number; lesson: string; page: string; report: string }
     | { kind: "open"; story?: number; lesson: string; page: string; report: string }
     | { kind: "plan-next"; epic: number; title: string; remaining: number; briefPath: string | null; report: string }
+    | { kind: "record-owed"; slice: string; story: number; epic: number; record: number | null; report: string }
     | { kind: "done"; report: string };
 
 export interface SessionResult {
@@ -130,6 +138,15 @@ export interface SessionResult {
      */
     notes: string[];
 }
+
+/**
+ * The answer when no caller handed a record reader in. A check that cannot run is never a stop
+ * (record #100, invariant 4): the session teaches exactly what the last release taught and says so.
+ */
+const RECORD_UNREADABLE: RecordReader = () => ({
+    kind: "unreadable",
+    detail: "this session was given no way to read a decision record",
+});
 
 /** The concepts one written lesson contributes to the history the drill is chosen from. */
 function conceptsOf(lesson: Lesson): LessonConceptHistory {
@@ -718,7 +735,32 @@ export function runTeachingSession(inputs: SessionInputs): SessionResult {
         };
     }
 
-    // 6. The drill: a concept the learner met at least one lesson earlier, ranked by the hints they
+    // 6. The record gate. The lesson's theory is written from the slice's pinned sources, and those
+    // come from the epic's decision record — so a slice with no sources whose epic this checkout
+    // finds no approved record for is not taught, and the session says what is owed instead
+    // (record #100). It is asked here and nowhere earlier: after the drift gate and the suite, so a
+    // verdict can never be issued out of a tree that cannot build or a plan whose story has moved,
+    // and before the drill, so nothing about the hint history is consulted for a lesson that will
+    // not be written. A slice already carrying sources is never asked about at all.
+    const record: RecordVerdict = recordOwed(plan, slice, inputs.readRecord ?? RECORD_UNREADABLE);
+    if (record.kind === "owed") {
+        return {
+            outcome: {
+                kind: "record-owed",
+                slice: record.slice,
+                story: record.story,
+                epic: record.epic,
+                record: record.record,
+                report: renderRecordOwedReport(slice, record.epic, record.record),
+            },
+            drift: gate.findings,
+            skipped,
+            notes,
+        };
+    }
+    if (record.note !== null) notes.push(record.note);
+
+    // 7. The drill: a concept the learner met at least one lesson earlier, ranked by the hints they
     // have taken on it — and, from the same hints, the concepts the lesson just finished left them
     // struggling with, which this lesson asks about again (story #463). The two are complements:
     // the drill is only ever on a cold concept, and these are only ever from the last lesson.
@@ -731,7 +773,7 @@ export function runTeachingSession(inputs: SessionInputs): SessionResult {
     const earned: LessonBrief["earned"] = earnedConcept === null ? null : { concept: earnedConcept, written: withPages.has(earnedConcept) };
     let brief: LessonBrief = briefFor(plan, slice, drill, revisit, earned);
 
-    // 7. The one generative step. Without the prose the chain hands out the brief and stops; with
+    // 8. The one generative step. Without the prose the chain hands out the brief and stops; with
     // it, the lesson is written, the workbook re-rendered, and the exercise handed over.
     if (inputs.prose === undefined) {
         return {
