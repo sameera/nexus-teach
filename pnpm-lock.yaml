@@ -105,6 +105,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@sameeraperera/nexus': link:../nexus
+
 importers:
 
   .:
@@ -117,8 +120,8 @@ importers:
         specifier: ^9.8.0
         version: 9.39.5
       '@sameeraperera/nexus':
-        specifier: ^0.61.0
-        version: 0.61.0
+        specifier: link:../nexus
+        version: link:../nexus
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.3
@@ -558,12 +561,6 @@ packages:
 
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
-
-  '@sameeraperera/nexus@0.61.0':
-    resolution: {integrity: sha512-kBtwpcdAabKCqx/E+C2OllTanh3WrGsThj0awsVVUXZhnjmc1/FEwAgHZraxMUgGkrRErlvLpCSrMbv0kEkqMQ==}
-    engines: {node: '>=22.22.0'}
-    os: [darwin, linux]
-    hasBin: true
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -1700,8 +1697,6 @@ snapshots:
     optional: true
 
   '@rolldown/pluginutils@1.0.1': {}
-
-  '@sameeraperera/nexus@0.61.0': {}
 
   '@standard-schema/spec@1.1.0': {}
 
