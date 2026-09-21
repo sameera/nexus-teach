@@ -17,6 +17,7 @@
 import { type Runner, defaultRunner } from "@nexus/workspace/run";
 import { resolveWorkspace, type ResolveResult } from "@nexus/workspace/resolve";
 import { writeLearnerRecord } from "./learner-store.js";
+import { PLANNING_PHASE_ENTRY_POINT } from "./phase-references.js";
 import { type UnplannedMember } from "./workbook-plan.js";
 
 /**
@@ -68,6 +69,11 @@ export function renderBoundaryReport(slug: string, boundary: PlanningBoundary): 
  * The question is answered from files already in the checkout — the one workspace resolver, which
  * reads a manifest or a pointer and stats sibling paths — so it costs no network and two renders of
  * the same checkout answer identically (invariant 7).
+ *
+ * The hub is named by its canonical remote identity and never by its directory name. The manifest
+ * loader refuses a hub name that holds a path separator, so that name can never be an owner/repo
+ * identity; a brief carrying it would print a local folder beside the workbook's real repository,
+ * both labelled the same way, and tell the learner to plan the epic in the folder.
  */
 export interface EpicHome {
     /** How the answer was reached. `unresolved` when the checkout declares a workspace it cannot read. */
@@ -87,7 +93,7 @@ export function epicHome(repoRoot: string, workbookRepo: string): EpicHome {
     const resolved: ResolveResult = resolveWorkspace(repoRoot);
     if (!resolved.ok) return { mode: "unresolved", repo: null };
     if (resolved.workspace.mode === "single-repo") return { mode: "single-repo", repo: workbookRepo };
-    return { mode: "workspace", repo: resolved.workspace.hub.name };
+    return { mode: "workspace", repo: resolved.workspace.hub.normalizedRemote };
 }
 
 /** Everything a planning brief states, all of it read off the committed plan and the checkout. */
@@ -178,7 +184,7 @@ export function renderPlanningBrief(ctx: PlanningBriefContext): string {
         "## What you do afterwards",
         "",
         "1. Plan the epic with the command above. It files the epic's stories as issues.",
-        `2. Run the planning chain over this workbook's roadmap again (\`/nxsx.teach-plan\`), the same`,
+        `2. Run the planning chain over this workbook's roadmap again (\`/${PLANNING_PHASE_ENTRY_POINT}\`), the same`,
         "   way this roadmap was resolved the first time.",
         "3. Approve the plan at the gate. The approval carries every slice you have already been",
         "   taught forward unchanged and plans the new epic's stories after them, so nothing you have",
