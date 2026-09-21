@@ -20,7 +20,7 @@ import { refuseUncleanCoverage, type CoverageRefusal } from "./plan-approval.js"
 import { renderPlanDraft, type PlanDraft, type PlanStub } from "./plan-draft.js";
 import { type Roadmap, type RoadmapStory } from "./roadmap.js";
 import { type IssueReader, type LiveStory } from "./teaching-plan.js";
-import { lessonNameFor, sliceId, type DeclaredCommands, type PlanSliceRecord, type WorkbookPlan } from "./workbook-plan.js";
+import { lessonNameFor, sliceId, type DeclaredCommands, type PlanSliceRecord, type UnplannedMember, type WorkbookPlan } from "./workbook-plan.js";
 
 /**
  * What the gate printed, as one value. Approval refuses a draft whose fingerprint differs from the one
@@ -225,6 +225,15 @@ function refuseReplan(draft: PlanDraft, carried: readonly PlanSliceRecord[], tau
 }
 
 /**
+ * The roadmap's members nobody has planned yet, in its own member order, read off the kind each member
+ * states and never off an empty story list (record #89, invariants 1 and 5). Each carries its number
+ * and title alone; the member's body stays on the roadmap, which is never committed.
+ */
+export function unplannedMembers(roadmap: Roadmap): UnplannedMember[] {
+    return roadmap.members.filter((member) => member.kind === "unplanned").map((member) => ({ epic: member.number, title: member.title }));
+}
+
+/**
  * Approve a draft. It runs the coverage refusal again rather than trusting that the gate was shown,
  * refuses a draft that changed since it was shown, refuses without declared commands, reads every
  * story's live state, and only then builds the plan. It writes nothing: the caller writes the plan and
@@ -262,12 +271,27 @@ export function approvePlan(input: ApprovalInput): Approval {
         if (replan !== null) return replan;
     }
 
+    // The boundary is read from the roadmap and the slices from the draft, so the plan only states the
+    // truth about what it did not plan when every story on the roadmap reached the draft. A member
+    // planned after the draft was written would otherwise sit in neither (record #89, first risk).
+    const drafted: Set<number> = new Set(draft.slices.flatMap((stub) => (stub.story === undefined ? [] : [stub.story])));
+    const undrafted: RoadmapStory[] = roadmap.stories.filter((story) => !drafted.has(story.number));
+    if (undrafted.length > 0) {
+        return refused(
+            "the roadmap holds stories the draft has no slice for, so it was re-resolved after the draft was written. Re-plan the roadmap, then approve again.",
+            undrafted.map((story) => `  #${story.number} (epic #${story.epic}) is on the roadmap and not in the draft.`),
+        );
+    }
+
     const { live, problems } = readLive(draft, roadmap, input.read);
     if (problems.length > 0) {
         return refused("the issue graph has moved since the draft was planned, or could not be read. Re-plan the roadmap, then approve again.", problems);
     }
 
     const edges: string[][] = sliceDependencies(draft.slices, roadmap);
+    // Recomputed from the roadmap on every approval, a re-approval included: a member planned since
+    // the last one has left the boundary and entered the slices (record #89).
+    const unplanned: UnplannedMember[] = unplannedMembers(roadmap);
     return {
         ok: true,
         plan: {
@@ -288,6 +312,7 @@ export function approvePlan(input: ApprovalInput): Approval {
                 // learner builds: nothing a re-plan reads could have changed the record they came from.
                 return written?.sources !== undefined && tested.learnerBuilds ? { ...tested, sources: { ...written.sources } } : tested;
             }),
+            ...(unplanned.length === 0 ? {} : { unplanned }),
         },
     };
 }

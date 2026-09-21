@@ -144,6 +144,22 @@ export interface WorkbookPlan {
      */
     probeControl: PinningTest | null;
     slices: PlanSliceRecord[];
+    /**
+     * The roadmap's members nobody had planned when the plan was approved, in the roadmap's own member
+     * order: where planning stopped, written down rather than inferred from what is absent (record
+     * #89). Absent when every member was planned — never an empty list.
+     */
+    unplanned?: UnplannedMember[];
+}
+
+/**
+ * One member past the planning boundary. It carries the epic's issue number and title and nothing
+ * else: it is never taught, so it has no lesson, branch, pinned state, concept, source or dependency
+ * edge, and nothing that reads slices ever reads it (record #89, invariants 6 and 7).
+ */
+export interface UnplannedMember {
+    epic: number;
+    title: string;
 }
 
 /** Raised instead of teaching from a plan that does not say what it must. */
@@ -312,6 +328,33 @@ function readSources(raw: unknown, learnerBuilds: boolean, at: string): PinnedSo
     };
 }
 
+/** The fields an entry past the planning boundary may carry. Nothing else is read into the plan. */
+const UNPLANNED_FIELDS: readonly string[] = ["epic", "title"];
+
+/**
+ * Read the planning boundary back as deliberately as approval writes it. The plan is parsed and
+ * rewritten in place while a workbook is taught, so a list read loosely here would be dropped by the
+ * first session that pins a test (record #89, invariant 8). An entry carrying anything beyond its
+ * number and title is refused rather than carried: the list holds no slice by construction.
+ */
+function readUnplanned(raw: unknown): UnplannedMember[] | undefined {
+    if (raw === undefined || raw === null) return undefined;
+    if (!Array.isArray(raw) || raw.length === 0) {
+        throw new PlanError("declares an 'unplanned' list that holds no epic. A fully planned roadmap's plan omits the list.");
+    }
+    return raw.map((entry, index): UnplannedMember => {
+        const where: string = `unplanned entry ${index + 1}`;
+        const record: Record<string, unknown> = asRecord(entry);
+        const extra: string[] = Object.keys(record).filter((key) => !UNPLANNED_FIELDS.includes(key));
+        if (extra.length > 0) {
+            throw new PlanError(`${where} carries ${extra.map((key) => `'${key}'`).join(", ")}. An epic past the planning boundary carries its number and title and nothing else.`);
+        }
+        const epic: number = Number(record["epic"]);
+        if (!Number.isInteger(epic) || epic <= 0) throw new PlanError(`${where} names no 'epic' issue number.`);
+        return { epic, title: text(record["title"], "title", where) };
+    });
+}
+
 /**
  * Read the optional control test. A workbook that declares none leaves it null; one that declares
  * half of it is refused, because a control missing its text would prove nothing while looking like
@@ -369,6 +412,7 @@ export function parsePlan(source: string): WorkbookPlan {
         throw new PlanError(`names an 'epic' that is not an issue number.`);
     }
     const read: PlanSliceRecord[] = slices.map((raw, index) => readSlice(raw, index, planEpic));
+    const unplanned: UnplannedMember[] | undefined = readUnplanned(record["unplanned"]);
 
     const seen: Map<string, string> = new Map();
     for (const slice of read) {
@@ -393,6 +437,7 @@ export function parsePlan(source: string): WorkbookPlan {
         grading: commandVector(record["grading"], "grading"),
         probeControl: readProbeControl(record["probe_control"]),
         slices: read,
+        ...(unplanned === undefined ? {} : { unplanned }),
     };
 }
 
@@ -431,6 +476,11 @@ export function renderWorkbookPlan(plan: WorkbookPlan): string {
                       }),
             };
         }),
+        // After the slices, so the file reads in the order the plan runs: what is taught, then where
+        // planning stopped. Written field by field like everything above it (invariant 6).
+        ...(plan.unplanned === undefined || plan.unplanned.length === 0
+            ? {}
+            : { unplanned: plan.unplanned.map((member) => ({ epic: member.epic, title: member.title })) }),
     };
     return stringify(doc, { indent: 4, flowCollectionPadding: false });
 }

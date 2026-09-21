@@ -12,6 +12,7 @@
 
 import { type CoverageGap, type CoverageVerdict, type PlanDraft, type PlanStub } from "./plan-draft.js";
 import { recheckCoverage, rewritePlan, type RewriteOptions } from "./plan-rewrite.js";
+import { type UnplannedMember } from "./workbook-plan.js";
 
 export type CoverageRefusal = { refused: false } | { refused: true; gaps: CoverageGap[]; report: string };
 
@@ -60,6 +61,18 @@ export function refuseUncleanCoverage(
 export interface GateContext {
     titles: ReadonlyMap<number, string>;
     focusMatchedNothing: boolean;
+    /**
+     * Where planning stopped, when the roadmap holds members nobody has planned yet (record #89). It
+     * travels beside the draft rather than on it, so the fingerprint of what the reviewer read is
+     * unchanged. Absent on a fully planned roadmap.
+     */
+    boundary?: GateBoundary;
+}
+
+/** The roadmap's size and its unplanned members, in the roadmap's own member order. */
+export interface GateBoundary {
+    members: number;
+    unplanned: readonly UnplannedMember[];
 }
 
 /**
@@ -95,6 +108,21 @@ export function renderGateDigest(draft: PlanDraft, context: GateContext): string
         context.focusMatchedNothing ? "The learner's focus matched no story." : "The learner's focus matched at least one story.",
         "Coverage: clean — every concept a slice assumes is taught before it.",
     );
+    // Last, so the reviewer reads what the plan does not cover immediately before deciding. Unlike the
+    // sections above it has no "(none)" form: a fully planned roadmap's print is left exactly as it was.
+    const boundary: GateBoundary | undefined = context.boundary;
+    if (boundary !== undefined && boundary.unplanned.length > 0) {
+        const covered: number = boundary.members - boundary.unplanned.length;
+        lines.push("", "Past the planning boundary — epics nobody has planned yet, in roadmap order:");
+        lines.push(...boundary.unplanned.map((member) => `  #${member.epic} — ${JSON.stringify(member.title)}`));
+        lines.push(
+            `The plan covers ${covered} of the roadmap's ${boundary.members} members. ` +
+            (boundary.unplanned.length === 1
+                ? "The epic named above is the one it did not plan; "
+                : `The ${boundary.unplanned.length} epics named above are the ones it did not plan; `) +
+            "approving it approves a partial plan.",
+        );
+    }
     return lines.join("\n");
 }
 

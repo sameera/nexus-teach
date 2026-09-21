@@ -2,6 +2,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
+import { parse as parseYaml } from "yaml";
+import { writeRoadmap } from "./roadmap.js";
 import { planDraftPath, readPlanDraft, writePlanDraft, type PlanDraft } from "./plan-draft.js";
 import { DRAFT, ROADMAP, approve, committedPlan, committedText, gate, planned, type Planned } from "./plan-commit-fixtures.js";
 import { type LiveStory } from "./teaching-plan.js";
@@ -91,7 +93,8 @@ describe("approval writes a committed plan the shipped teaching session reads (s
             ],
             coverage: { clean: true, gaps: [] },
         };
-        const p: Planned = planned(draft);
+        // The draft plans #100's stories alone, so the roadmap it was planned from holds #100 alone.
+        const p: Planned = planned(draft, { ...ROADMAP, members: [ROADMAP.members[0]], stories: ROADMAP.stories.filter((story) => story.epic === 100) });
         approve(p);
         const session = (prose?: Parameters<typeof runTeachingSession>[0]["prose"]): SessionResult =>
             runTeachingSession({ repoRoot: p.repo, slug: "alpha", read: (story) => p.fake.live[story] ?? null, run: p.run, prose, now: () => "2026-09-13T00:00:00.000Z" });
@@ -220,5 +223,177 @@ describe("approval writes a committed plan the shipped teaching session reads (s
         expect(code).toBe(1);
         expect(captured.err.join("\n")).toMatch(/refused/);
         expect(readWorkbookPlan(p.repo, "alpha")).toBeNull();
+    });
+});
+
+/** The approval roadmap, still growing: #250 was pulled ahead of #200, so roadmap order is not issue order. */
+const MIXED = {
+    ...ROADMAP,
+    members: [
+        ROADMAP.members[0],
+        { number: 250, title: "Not planned yet", kind: "unplanned" as const, body: "UNPLANNED-BODY-250" },
+        ROADMAP.members[1],
+        { number: 150, title: "Also not planned", kind: "unplanned" as const, body: "UNPLANNED-BODY-150" },
+    ],
+};
+
+/** The committed plan file as YAML, so a field the reader does not know about still shows. */
+function rawPlan(p: Planned): Record<string, unknown> {
+    return parseYaml(fs.readFileSync(path.join(workbookRoot(p.repo, "alpha"), PLAN_FILENAME), "utf8")) as Record<string, unknown>;
+}
+
+describe("the committed plan records the members it did not plan, in roadmap order (story #86)", () => {
+    it("holds exactly one entry per member with no stories, carrying its issue number and title", () => {
+        const p: Planned = planned(DRAFT, MIXED);
+        expect(approve(p).code).toBe(0);
+        const unplanned: unknown[] = rawPlan(p)["unplanned"] as unknown[];
+        expect(unplanned).toHaveLength(2);
+        expect(unplanned).toEqual(expect.arrayContaining([{ epic: 150, title: "Also not planned" }, { epic: 250, title: "Not planned yet" }]));
+    });
+
+    it("holds those entries in the roadmap's own member order, not issue order", () => {
+        const p: Planned = planned(DRAFT, MIXED);
+        approve(p);
+        expect(committedPlan(p).unplanned?.map((member) => member.epic)).toEqual([250, 150]);
+    });
+
+    it("gives an entry no slice, no concept, no source and nothing else", () => {
+        const p: Planned = planned(DRAFT, MIXED);
+        approve(p);
+        for (const entry of rawPlan(p)["unplanned"] as Record<string, unknown>[]) expect(Object.keys(entry).sort()).toEqual(["epic", "title"]);
+        const plan: WorkbookPlan = committedPlan(p);
+        expect(plan.slices.map((slice) => slice.epic).filter((epic) => epic === 150 || epic === 250)).toEqual([]);
+        expect(plan.slices).toHaveLength(DRAFT.slices.length);
+        expect(committedText(p.repo)).not.toContain("UNPLANNED-BODY");
+    });
+
+    it("keeps an entry out of every page the workbook renders", () => {
+        const p: Planned = planned(DRAFT, MIXED);
+        approve(p);
+        const pages: string = fs
+            .readdirSync(workbookRoot(p.repo, "alpha"))
+            .filter((name) => name.endsWith(".html"))
+            .map((name) => fs.readFileSync(path.join(workbookRoot(p.repo, "alpha"), name), "utf8"))
+            .join("\n");
+        expect(pages).not.toContain("Not planned yet");
+        expect(pages).not.toContain("Also not planned");
+    });
+
+    it("writes no such list on a roadmap whose members all have stories", () => {
+        const whole: Planned = planned();
+        const mixed: Planned = planned(DRAFT, MIXED);
+        approve(whole);
+        approve(mixed);
+        expect(rawPlan(whole)).not.toHaveProperty("unplanned");
+        expect(committedPlan(whole).unplanned).toBeUndefined();
+        const { unplanned: _boundary, ...rest } = committedPlan(mixed);
+        expect(rest).toEqual(committedPlan(whole));
+    });
+
+    it("keeps the list through a teaching session that rewrites the plan in place", () => {
+        const p: Planned = planned(DRAFT, MIXED);
+        approve(p);
+        const briefed: SessionResult = runTeachingSession({ repoRoot: p.repo, slug: "alpha", read: (story) => p.fake.live[story] ?? null, run: p.run, now: () => "2026-09-13T00:00:00.000Z" });
+        if (briefed.outcome.kind !== "brief") throw new Error(`expected a brief, got ${briefed.outcome.kind}`);
+        const written: SessionResult = runTeachingSession({
+            repoRoot: p.repo,
+            slug: "alpha",
+            read: (story) => p.fake.live[story] ?? null,
+            run: p.run,
+            prose: { theory: "Pinning records what a story said.", pinningTests: [{ slice: briefed.outcome.brief.writeTest?.slice as string, file: "tests/pin.spec.ts", text: "it('pins', () => {});\n" }] },
+            now: () => "2026-09-13T00:00:00.000Z",
+        });
+        expect(written.outcome.kind).toBe("written");
+        expect(committedPlan(p).slices[0].pinningTest).not.toBeNull();
+        expect(committedPlan(p).unplanned).toEqual([
+            { epic: 250, title: "Not planned yet" },
+            { epic: 150, title: "Also not planned" },
+        ]);
+    });
+
+    it("recomputes the list on a re-approval rather than carrying the previous one forward", () => {
+        const p: Planned = planned(DRAFT, MIXED);
+        approve(p);
+        // #250 has since been planned; its stories were withdrawn, so it contributes none and is planned all the same.
+        writeRoadmap(p.repo, { ...MIXED, members: MIXED.members.map((m) => (m.number === 250 ? { number: 250, title: m.title, kind: "planned" as const } : m)) });
+        expect(gate(p).code).toBe(0);
+        const again = gate(p, "--approve");
+        expect(again.captured.err).toEqual([]);
+        expect(committedPlan(p).unplanned).toEqual([{ epic: 150, title: "Also not planned" }]);
+    });
+
+    it("refuses a draft missing a story the roadmap holds, so the list is never a false complement", () => {
+        const p: Planned = planned(DRAFT, MIXED);
+        expect(gate(p).code).toBe(0);
+        // A member planned after the draft was written: its story is on the roadmap and in no slice.
+        writeRoadmap(p.repo, {
+            ...MIXED,
+            members: MIXED.members.map((m) => (m.number === 150 ? { number: 150, title: m.title, kind: "planned" as const } : m)),
+            stories: [...MIXED.stories, { number: 31, title: "Late", body: "Planned after the draft.", epic: 150, blockedBy: [], external: [] }],
+        });
+        const refused = gate(p, "--approve", "--commands", p.commands);
+        expect(refused.code).toBe(1);
+        expect(refused.captured.err.join("\n")).toContain("#31");
+        expect(readWorkbookPlan(p.repo, "alpha")).toBeNull();
+    });
+
+    it("refuses a committed entry carrying anything beyond its number and title", () => {
+        const p: Planned = planned(DRAFT, MIXED);
+        approve(p);
+        const file: string = path.join(workbookRoot(p.repo, "alpha"), PLAN_FILENAME);
+        const text: string = fs.readFileSync(file, "utf8").replace("title: Not planned yet", "title: Not planned yet\n      lesson: story-250.md");
+        expect(() => parsePlan(text)).toThrow(/number and title and nothing else/);
+    });
+});
+
+describe("the approval gate shows the planning boundary and what sits past it (story #87)", () => {
+    function printed(p: Planned): string {
+        const shown = gate(p);
+        expect(shown.code).toBe(0);
+        return shown.captured.out.join("\n");
+    }
+
+    it("names each member with no stories by issue number and title, in roadmap order, after the last slice", () => {
+        const print: string = printed(planned(DRAFT, MIXED));
+        const lines: string[] = print.split("\n");
+        const named: number[] = [lines.findIndex((l) => l.includes("#250")), lines.findIndex((l) => l.includes("#150"))];
+        expect(lines[named[0]]).toContain('"Not planned yet"');
+        expect(lines[named[1]]).toContain('"Also not planned"');
+        expect(named[0]).toBeLessThan(named[1]);
+        const lastSlice: number = lines.findIndex((l) => l.includes("#21 —"));
+        expect(named[0]).toBeGreaterThan(lastSlice);
+        expect(named[0]).toBeGreaterThan(lines.findIndex((l) => l.startsWith("Coverage:")));
+    });
+
+    it("states how many of the roadmap's members the plan covers, and that the named ones are those it did not plan", () => {
+        const print: string = printed(planned(DRAFT, MIXED));
+        expect(print).toContain("The plan covers 2 of the roadmap's 4 members.");
+        expect(print).toContain("The 2 epics named above are the ones it did not plan");
+    });
+
+    it("approves a partial plan and writes it, refusing nothing on account of the members it did not plan", () => {
+        const p: Planned = planned(DRAFT, MIXED);
+        const approved = approve(p);
+        expect(approved.captured.err).toEqual([]);
+        expect(approved.code).toBe(0);
+        expect(committedPlan(p).slices).toHaveLength(DRAFT.slices.length);
+    });
+
+    it("leaves the print of a roadmap whose members all have stories exactly as it was, block and all", () => {
+        const whole: string = printed(planned());
+        const mixed: string = printed(planned(DRAFT, MIXED));
+        expect(whole).not.toContain("planning boundary");
+        expect(whole).not.toContain("members");
+        // The mixed print is the whole print with the boundary block appended and nothing else changed.
+        expect(mixed.startsWith(`${whole}\n\n`)).toBe(true);
+    });
+
+    it("records the same fingerprint for the draft whether or not the roadmap holds unplanned members", () => {
+        const whole: Planned = planned();
+        const mixed: Planned = planned(DRAFT, MIXED);
+        printed(whole);
+        printed(mixed);
+        const shown = (p: Planned): string => fs.readFileSync(path.join(path.dirname(planDraftPath(p.repo, "alpha")), "gate-shown.txt"), "utf8");
+        expect(shown(mixed)).toBe(shown(whole));
     });
 });

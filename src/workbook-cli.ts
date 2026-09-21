@@ -40,12 +40,14 @@ import { resolveWorkbookHome, type WorkbookHomeResult } from "./workbook-placeme
 import { type AuthoredPinningTest, type AuthoredProse, type RevisitProse } from "./lesson-writer.js";
 import { type IssueReader, type LiveStory } from "./teaching-plan.js";
 import { runTeachingSession, type SessionResult } from "./teaching-session.js";
-import { parseCommands, type DeclaredCommands, type WorkbookPlan } from "./workbook-plan.js";
-import { approvePlan, carriedStubs, draftFingerprint, type Approval } from "./plan-commit.js";
+import { parseCommands, type DeclaredCommands, type UnplannedMember, type WorkbookPlan } from "./workbook-plan.js";
+import { approvePlan, carriedStubs, draftFingerprint, unplannedMembers, type Approval } from "./plan-commit.js";
 import {
     epicsFromInitiative,
     epicsFromQuery,
+    hasPlannedMember,
     nameFromTitle,
+    nothingPlannedYet,
     readRoadmap,
     resolveRoadmap,
     writeRoadmap,
@@ -562,6 +564,12 @@ function runExtract(repoRoot: string, name: string, flags: Flags, io: WorkbookCl
     }
     const roadmap: Roadmap | null = resolvedRoadmap(repoRoot, name, io);
     if (roadmap === null) return 1;
+    // Extraction is the first phase that reads stories, so a roadmap with nothing planned on it stops
+    // here, once, before any is read (record #89, invariant 4).
+    if (!hasPlannedMember(roadmap)) {
+        io.stderr(nothingPlannedYet(roadmap));
+        return 1;
+    }
     // The focus comes from the recorded interview and from nowhere else: the pass asks the learner
     // nothing, so a roadmap with no interview stops here, before any subagent can start.
     const interview: InterviewRecord | null = readInterview(repoRoot, name);
@@ -777,10 +785,13 @@ function runGate(repoRoot: string, name: string, flags: Flags, io: WorkbookCliIo
         return 1;
     }
     const interview: InterviewRecord | null = readInterview(repoRoot, name);
+    // The boundary comes off the resolved roadmap, the same reading approval makes, and never off the draft.
+    const unplanned: UnplannedMember[] = unplannedMembers(roadmap);
     io.stdout(
         renderGateDigest(draft, {
             titles: new Map(roadmap.stories.map((story) => [story.number, story.title])),
             focusMatchedNothing: interview !== null && focusMatchedNothing(interview, readExtractions(repoRoot, roadmap).current),
+            ...(unplanned.length === 0 ? {} : { boundary: { members: roadmap.members.length, unplanned } }),
         }),
     );
     // What was shown is recorded beside the draft, so approval can refuse a draft that changed after

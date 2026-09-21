@@ -103,8 +103,11 @@ nxsx workbook extract <name>
 ```
 
 This prints the story numbers still to extract — every story on a first run; on a re-run, only the
-ones whose list failed or whose text has changed. It stops before any subagent starts when the
-roadmap has no interview; report that and stop.
+ones whose list failed or whose text has changed. Only a planned member has stories, so an epic
+nobody has planned yet is never listed and this phase and every later one run over the planned
+members alone. It stops before any subagent starts when the roadmap has no interview, and when no
+member of the roadmap is planned — there is nothing to plan yet, and no draft is written; report
+either as it stands and stop.
 
 Start one `nxsx-concept-extractor` subagent per listed story, in parallel. Give each **only** the
 roadmap name and its story number — never a prompt built from the story's text, and never anything you
@@ -258,7 +261,10 @@ shown, naming every gap. Report a refusal as it stands and **stop**.
 
 Otherwise the command prints the gate: every slice in order with its mark, each split story with its
 parts, each scaffold beside the slice that forced it, each concept the declaration removed beside the
-learner's phrase, the phrases that matched nothing, and whether the focus matched no story. Show it to
+learner's phrase, the phrases that matched nothing, and whether the focus matched no story. When the
+roadmap holds epics nobody has planned yet, it ends by naming each of them, in roadmap order, and
+saying how many of the roadmap's members the plan covers: the reviewer is approving a partial plan,
+and approval is not refused for that alone. Show it to
 the reviewer **word for word**. Do not summarise it, reorder it or leave a line out — the print is code's
 so that nothing can be dropped. It carries no lesson prose and no sources, because neither is decided
 here. Then ask the reviewer, with `AskUserQuestion`, to approve, change marks, or decline.
@@ -284,7 +290,12 @@ here. Then ask the reviewer, with `AskUserQuestion`, to approve, change marks, o
   Approval checks coverage again, refuses a draft that changed after the gate was printed (print it
   again), and reads every story's live state. If a story changed since the roadmap was resolved, or
   cannot be read, approval writes nothing and names each one: report it and **stop** — the roadmap is
-  re-planned from Phase 1 before it is approved. Otherwise it writes the committed plan.
+  re-planned from Phase 1 before it is approved. It also refuses a draft that has no slice for a
+  story the roadmap now holds — the roadmap was re-resolved after the draft was written — and the
+  same re-plan applies. Otherwise it writes the committed plan. When the roadmap holds epics nobody
+  has planned yet, the plan records each of them by issue number and title, in the roadmap's own
+  order, after its slices: that is where planning stopped. They are never slices and nothing teaches
+  them.
 - **Decline.** Run nothing. The committed workbook is unchanged and the draft stays in place.
 
 Approval moves no git state. Tell the learner the plan is written and theirs to commit.

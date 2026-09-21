@@ -102,6 +102,28 @@ export interface Roadmap {
     stories: RoadmapStory[];
 }
 
+/**
+ * Whether the roadmap holds any planned member, read off the kind each member states (record #89,
+ * invariant 1). An empty story list does not answer it: a planned epic whose stories were all
+ * withdrawn contributes none either, and is still planned.
+ */
+export function hasPlannedMember(roadmap: Roadmap): boolean {
+    return roadmap.members.some((member) => member.kind === "planned");
+}
+
+/**
+ * The refusal every phase that reads stories gives a roadmap with no planned member (record #89,
+ * invariant 4). The workbook and the interview are left where they are: the roadmap is still growing,
+ * and planning resumes from them once one of its members is planned.
+ */
+export function nothingPlannedYet(roadmap: Roadmap): string {
+    return (
+        `every member of the roadmap ${roadmap.name} is an epic nobody has planned yet ` +
+        `(${roadmap.members.map((m) => `#${m.number}`).join(", ")}), so there is nothing to plan yet. ` +
+        `No story was read and no draft was written; plan one of those epics and re-run.`
+    );
+}
+
 /** A named diagnostic, in the same shape the shared resolver reports its own. */
 export interface RoadmapProblem {
     problem: string;
