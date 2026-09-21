@@ -1,9 +1,9 @@
 ---
 title: "Pinned Lesson Sources"
 aliases: ["pinned sources", "source pinning", "sources pinned at record approval", "lesson grounding", "exemplar file", "pin workbook sources"]
-touches: ["teaching-plan", "plan-field-ownership", "plan-re-approval"]
+touches: ["teaching-plan", "plan-field-ownership", "plan-re-approval", "record-owed"]
 domain: "roadmap-planning/approval"
-last_updated_by: "#691"
+last_updated_by: "#68"
 status: active
 verification: verified
 ---
@@ -35,6 +35,7 @@ Approval is read live, through the same fetch the record digest uses, from the c
 - [teaching-plan](teaching-plan.md) — the committed plan whose learner slices hold the pinned sources.
 - [plan-field-ownership](plan-field-ownership.md) — assigns the sources field to the design stage and keeps it absent until pinned.
 - [plan-re-approval](plan-re-approval.md) — carries a slice's pinned sources into the new plan while the slice stays one the learner builds.
+- [record-owed](record-owed.md) — asks this step whether it is still waiting for an epic, and that answer is the whole of the session's stop.
 
 ## Decision Log
 
@@ -45,3 +46,7 @@ A slice's lesson needs grounding that the plan cannot hold at approval, so the d
 ### 2026-09-19 — #691 — Moved here from the Nexus repository
 
 The teaching stage now ships as a package of its own, and this page came with it, decision log and all. What changed on arrival is the edges this page can declare: an edge names a page in the same store, and decision-record, record-digest stayed behind. Those interactions did not stop — the stage still reads what those pages describe — but a store cannot hold an edge whose other end is in another repository, and a dead edge reads as though the interaction lapsed. The page each one named keeps a retired forwarding entry there, so the relationship is still findable from that side.
+
+### 2026-09-21 — #68 — This step's own answer became the session's stop condition
+
+A session now refuses to teach a slice whose epic still owes its record, and it decides that by calling this step and reading whether it reports it is waiting, rather than by restating the rule beside it. So there is one definition of an epic having an approved record, and a change to it moves both at once. Nothing here changed: what is checked, how approval is read, what is refused, and the silence on an epic with no record all stand. The permissiveness in particular is deliberate and is now load-bearing in two places. This step sweeps many workbooks where "no record yet" is the ordinary answer, so a no-op is right here, while the strictness belongs at the one moment a lesson is about to be written. This entry also records the reciprocal link from record-owed.

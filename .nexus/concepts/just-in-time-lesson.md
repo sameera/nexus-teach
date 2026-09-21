@@ -1,9 +1,9 @@
 ---
 title: "Just-In-Time Lesson"
 aliases: ["written on arrival", "lesson written when the learner arrives", "arrival", "exercise half", "revisit a hinted concept", "one lesson ahead", "pinning test written on arrival"]
-touches: ["teaching-session", "teaching-plan", "cold-drill", "lesson-renderer", "learner-folder", "slice-identity", "plan-field-ownership"]
+touches: ["teaching-session", "teaching-plan", "cold-drill", "lesson-renderer", "learner-folder", "slice-identity", "plan-field-ownership", "record-owed"]
 domain: "teaching-sessions"
-last_updated_by: "#691"
+last_updated_by: "#68"
 status: active
 verification: verified
 ---
@@ -39,6 +39,7 @@ A concept the learner took a hint on in the lesson they have just finished is as
 - [learner-folder](learner-folder.md) — the hint counts that say which concepts this lesson comes back to.
 - [slice-identity](slice-identity.md) — the name this lesson's file takes, and the reason the lesson itself is what marks its slice done.
 - [plan-field-ownership](plan-field-ownership.md) — why the pinning test is this arrival's to write rather than approval's, and why it is written once.
+- [record-owed](record-owed.md) — the stop that means no lesson is written here, and which hands the pinned sources to this one once it clears.
 
 ## Decision Log
 
@@ -53,3 +54,7 @@ Writing on arrival now covers the exercise's pinning test, not only the lesson's
 ### 2026-09-19 — #691 — Moved here from the Nexus repository
 
 The teaching stage now ships as a package of its own, and this page came with it, decision log and all. Nothing it asserts changed; the store it is asserted in did. The Nexus repository keeps a retired forwarding entry under this slug, so a reader who greps the old name is told where the page went rather than finding nothing.
+
+### 2026-09-21 — #68 — A lesson is not written at all when its epic owes a record, and the sources now reach the brief
+
+Arrival deciding where the learner is no longer settles that a lesson gets written. A slice the learner builds whose epic has no approved decision record is stopped before this step, because the theory would otherwise be grounded in a repository search rather than in the record. Once the record is approved and the sources pinned, they reach the brief handed to whoever writes the prose: the record section, the exemplar and the refuted alternative with what it lost on. Nothing refuses a lesson for not visibly using them, because a record section has no token that must literally appear, so a check would either pass trivially or reject good prose. The body here is unchanged because it sits at the word cap. This entry also records the reciprocal link from record-owed.

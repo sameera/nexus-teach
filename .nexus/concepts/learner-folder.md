@@ -1,9 +1,9 @@
 ---
 title: "Learner Folder"
 aliases: ["learner store", "personal records", "one ignore rule", "learner ignore guard", "per-learner state"]
-touches: ["workbook-store", "workbook-handoff", "lesson-renderer", "cold-drill", "just-in-time-lesson", "handoff-prompt", "focus-marking", "planning-brief"]
+touches: ["workbook-store", "workbook-handoff", "lesson-renderer", "cold-drill", "just-in-time-lesson", "handoff-prompt", "focus-marking", "planning-brief", "record-owed"]
 domain: "workbook-rendering/store"
-last_updated_by: "#67"
+last_updated_by: "#68"
 status: active
 verification: verified
 ---
@@ -36,6 +36,7 @@ The folder is a direct child of the store rather than of each workbook, so a sec
 - [handoff-prompt](handoff-prompt.md) — the prompt is kept here, so it is never a page and can never appear as drift.
 - [focus-marking](focus-marking.md) — files each verdict's reason here, so the one line saying why a slice was handed off survives for the reviewer.
 - [planning-brief](planning-brief.md) — kept here under a record kind of its own, so it is never a page and never read as an open pause.
+- [record-owed](record-owed.md) — its brief is kept here too, under a second kind, so the two briefs for one epic cannot overwrite each other.
 
 ## Decision Log
 
@@ -58,3 +59,7 @@ The teaching stage now ships as a package of its own, and this page came with it
 ### 2026-09-20 — #67 — Reciprocal link from planning-brief
 
 Mechanical reciprocity fan-out: a session that reaches the planning boundary now files the brief for planning the next epic here, under a record kind of its own rather than among the pauses. The pauses folder is what the session scans to decide whether a learner is returning from a handoff, and a brief can never be resolved, so a record that is not a pause does not belong in the set that answers whether anything is outstanding. Nothing this page asserts changed; one more kind of personal record arrived, under the same ignore guard as the rest.
+
+### 2026-09-21 — #68 — Reciprocal link from record-owed
+
+Mechanical reciprocity fan-out: a session stopped at a slice whose epic owes its decision record files its brief here, under a kind of its own rather than beside the planning briefs. Both briefs are named from the same epic's number, so a shared kind would have the second overwrite the first. Nothing this page asserts changed; the folder holds one more kind of personal record, under the same ignore guard.
