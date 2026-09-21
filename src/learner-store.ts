@@ -49,6 +49,10 @@ export const LEARNER_RECORD_KINDS: readonly string[] = [
     // to decide whether the learner is returning from a handoff, and a planning brief is a record
     // that can never be resolved (record #95).
     "planning-briefs",
+    // A kind of its own rather than a second planning brief: both are about one epic at two
+    // different moments and both are named from that epic's number, so one kind would let the
+    // second silently overwrite the first — and no session removes a brief (record #100).
+    "record-briefs",
 ];
 
 export type LearnerRecordKind = (typeof LEARNER_RECORD_KINDS)[number];

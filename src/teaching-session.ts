@@ -59,8 +59,17 @@ import {
     type PlanningBoundary,
     type PlanningBriefContext,
 } from "./planning-boundary.js";
+import {
+    briefedStories,
+    recordOwed,
+    renderRecordOwedReport,
+    writeRecordBrief,
+    type RecordBriefContext,
+    type RecordReader,
+    type RecordVerdict,
+} from "./record-owed.js";
 import { gateNextLesson, type DriftFinding, type IssueReader, type LessonGate, type TeachingPlan } from "./teaching-plan.js";
-import { sliceId, sliceLabel, toTeachingPlan, type PlanSliceRecord, type WorkbookPlan } from "./workbook-plan.js";
+import { sliceId, sliceLabel, toTeachingPlan, type PinnedSources, type PlanSliceRecord, type WorkbookPlan } from "./workbook-plan.js";
 import {
     REFERENCE_PAGE_PREFIX,
     REFERENCE_WORD_BUDGET,
@@ -91,6 +100,12 @@ export interface SessionInputs {
     slug: string;
     /** Reads a story's live issue state. The session never fetches it itself. */
     read: IssueReader;
+    /**
+     * Reads one epic's decision record, for the one slice the session arrives at. Handed in for the
+     * same reason the story reader is: the session reaches nothing itself (record #100, invariant 5).
+     * Absent leaves the check unable to run, which teaches rather than stops (invariant 4).
+     */
+    readRecord?: RecordReader;
     /** The prose an agent wrote for the lesson the previous run briefed. */
     prose?: AuthoredProse;
     run?: Runner;
@@ -112,6 +127,7 @@ export type SessionOutcome =
     | { kind: "written"; story?: number; lesson: string; page: string; report: string }
     | { kind: "open"; story?: number; lesson: string; page: string; report: string }
     | { kind: "plan-next"; epic: number; title: string; remaining: number; briefPath: string | null; report: string }
+    | { kind: "record-owed"; slice: string; story: number; epic: number; record: number | null; briefPath: string | null; report: string }
     | { kind: "done"; report: string };
 
 export interface SessionResult {
@@ -130,6 +146,15 @@ export interface SessionResult {
      */
     notes: string[];
 }
+
+/**
+ * The answer when no caller handed a record reader in. A check that cannot run is never a stop
+ * (record #100, invariant 4): the session teaches exactly what the last release taught and says so.
+ */
+const RECORD_UNREADABLE: RecordReader = () => ({
+    kind: "unreadable",
+    detail: "this session was given no way to read a decision record",
+});
 
 /** The concepts one written lesson contributes to the history the drill is chosen from. */
 function conceptsOf(lesson: Lesson): LessonConceptHistory {
@@ -339,7 +364,25 @@ function briefFor(
                       gradingCommand: plan.grading.join(" "),
                   },
         ...(needsTest(slice) ? { writeTest: testRequest(plan, slice) } : {}),
+        // What the epic's approved decision record supplied for this slice, once somebody pinned it.
+        // This is what the whole record gate buys: theory written from a named section, a named
+        // exemplar and a named refuted alternative rather than from a search (record #100).
+        ...(slice.sources === undefined ? {} : { sources: slice.sources }),
     };
+}
+
+/** What a brief says about the material this lesson's theory is written from. */
+function sourcesReport(sources: PinnedSources | undefined): string {
+    if (sources === undefined) return "";
+    const refuted: string =
+        sources.refuted === undefined
+            ? ""
+            : ` The alternative ${JSON.stringify(sources.refuted.alternative)} was refuted under ` +
+              `${JSON.stringify(sources.refuted.decision)}, and lost on ${sources.refuted.lostOn.replace(/\.$/, "")}.`;
+    return (
+        ` The theory is written from the decision record's section ${JSON.stringify(sources.section)}, ` +
+        `demonstrated by ${sources.exemplar}.${refuted}`
+    );
 }
 
 /** What a brief asks for on the concept this sitting's drill earned a reference page for. */
@@ -385,6 +428,47 @@ function planningBriefFor(
         skipped.push(
             `the brief for planning #${boundary.next.epic} could not be written, so the epic to plan ` +
             `is named here and nowhere else: ${e instanceof Error ? e.message : String(e)}`,
+        );
+        return null;
+    }
+}
+
+/**
+ * Write the brief for the record the stopped slice's epic owes, and say where it went.
+ *
+ * A brief that cannot be written is reported beside the verdict rather than replacing it: the
+ * verdict does not depend on the brief existing, and this path has recorded nothing, so there is no
+ * half-state to protect (record #100). The handoff path fails on the same refusal only because it
+ * has already recorded a pause.
+ */
+function recordBriefFor(
+    repoRoot: string,
+    slug: string,
+    plan: WorkbookPlan,
+    epic: number,
+    record: number | null,
+    story: number,
+    run: Runner,
+    skipped: string[],
+    notes: string[],
+): string | null {
+    const context: RecordBriefContext = {
+        epic,
+        record,
+        story,
+        stories: briefedStories(plan, epic),
+        workbook: slug,
+        workbookRepo: plan.repo,
+        home: epicHome(repoRoot, plan.repo),
+    };
+    try {
+        const briefPath: string = writeRecordBrief(repoRoot, context, run);
+        notes.push(`the brief for writing epic #${epic}'s decision record is at ${briefPath}.`);
+        return briefPath;
+    } catch (e) {
+        skipped.push(
+            `the brief for writing epic #${epic}'s decision record could not be written, so what is ` +
+            `owed is named here and nowhere else: ${e instanceof Error ? e.message : String(e)}`,
         );
         return null;
     }
@@ -718,7 +802,33 @@ export function runTeachingSession(inputs: SessionInputs): SessionResult {
         };
     }
 
-    // 6. The drill: a concept the learner met at least one lesson earlier, ranked by the hints they
+    // 6. The record gate. The lesson's theory is written from the slice's pinned sources, and those
+    // come from the epic's decision record — so a slice with no sources whose epic this checkout
+    // finds no approved record for is not taught, and the session says what is owed instead
+    // (record #100). It is asked here and nowhere earlier: after the drift gate and the suite, so a
+    // verdict can never be issued out of a tree that cannot build or a plan whose story has moved,
+    // and before the drill, so nothing about the hint history is consulted for a lesson that will
+    // not be written. A slice already carrying sources is never asked about at all.
+    const record: RecordVerdict = recordOwed(plan, slice, inputs.readRecord ?? RECORD_UNREADABLE);
+    if (record.kind === "owed") {
+        return {
+            outcome: {
+                kind: "record-owed",
+                slice: record.slice,
+                story: record.story,
+                epic: record.epic,
+                record: record.record,
+                briefPath: recordBriefFor(repoRoot, slug, plan, record.epic, record.record, slice.story as number, run, skipped, notes),
+                report: renderRecordOwedReport(slice, record.epic, record.record),
+            },
+            drift: gate.findings,
+            skipped,
+            notes,
+        };
+    }
+    if (record.note !== null) notes.push(record.note);
+
+    // 7. The drill: a concept the learner met at least one lesson earlier, ranked by the hints they
     // have taken on it — and, from the same hints, the concepts the lesson just finished left them
     // struggling with, which this lesson asks about again (story #463). The two are complements:
     // the drill is only ever on a cold concept, and these are only ever from the last lesson.
@@ -731,7 +841,7 @@ export function runTeachingSession(inputs: SessionInputs): SessionResult {
     const earned: LessonBrief["earned"] = earnedConcept === null ? null : { concept: earnedConcept, written: withPages.has(earnedConcept) };
     let brief: LessonBrief = briefFor(plan, slice, drill, revisit, earned);
 
-    // 7. The one generative step. Without the prose the chain hands out the brief and stops; with
+    // 8. The one generative step. Without the prose the chain hands out the brief and stops; with
     // it, the lesson is written, the workbook re-rendered, and the exercise handed over.
     if (inputs.prose === undefined) {
         return {
@@ -746,6 +856,7 @@ export function runTeachingSession(inputs: SessionInputs): SessionResult {
                         ? "."
                         : `, and a question and answer on ${revisit.join(", ")} — asked about again ` +
                           `because the last lesson took a hint on ${revisit.length === 1 ? "it" : "them"}.`) +
+                    sourcesReport(brief.sources) +
                     earnedReport(earned),
             },
             drift: gate.findings,

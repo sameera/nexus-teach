@@ -21,6 +21,7 @@
 
 import { PREDICT_THEN_REVEAL_COMPONENT } from "./predict-then-reveal.js";
 import { type PlanSlice, type TeachingPlan } from "./teaching-plan.js";
+import { type PinnedSources } from "./workbook-plan.js";
 import { WIDGET_FENCE_INFO } from "./workbook-widgets.js";
 
 /** What is on record for a lesson already written. */
@@ -233,6 +234,19 @@ export interface LessonBrief {
      * carries its file and text under this slice's identity; once recorded it is never rewritten.
      */
     writeTest?: PinningTestRequest;
+    /**
+     * The material this lesson's theory is written from: the section of the epic's decision record
+     * that states the invariant the story implements, the one file that demonstrates it, and the
+     * alternative that decision refuted with what it lost on (epic #68, record #100, invariant 17).
+     * Absent when the slice's sources were never pinned, and the brief then states exactly what it
+     * stated before this existed.
+     *
+     * Nothing refuses a lesson for not visibly using them. The one refusal that works — the revisited
+     * concept — works because the concept's name is a token that must literally appear, and a record
+     * section's content has no such token, so a check here would be either trivially satisfied or a
+     * rejection of good prose.
+     */
+    sources?: PinnedSources;
 }
 
 /** One pinning test the session asks for, with the facts a test for that slice is written against. */
