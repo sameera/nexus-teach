@@ -915,7 +915,7 @@ function changeMark(repoRoot: string, roadmap: Roadmap, draft: PlanDraft, flags:
  * One lookup serves both callers: the verb that pins sources, and the seam the teaching session asks
  * its record question through. Two lookups would be two answers about one epic (record #100).
  */
-function lookupRecord(repoRoot: string, epic: number, run: Runner): RecordLookup {
+export function lookupRecord(repoRoot: string, epic: number, run: Runner): RecordLookup {
     const resolved = resolveWorkspace(repoRoot);
     const pipelineRoot: string = resolved.ok && resolved.workspace.mode === "workspace" ? resolved.workspace.hubRoot : repoRoot;
     const materialized: string = defaultOutPath(pipelineRoot, epic);

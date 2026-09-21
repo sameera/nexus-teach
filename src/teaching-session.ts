@@ -69,7 +69,7 @@ import {
     type RecordVerdict,
 } from "./record-owed.js";
 import { gateNextLesson, type DriftFinding, type IssueReader, type LessonGate, type TeachingPlan } from "./teaching-plan.js";
-import { sliceId, sliceLabel, toTeachingPlan, type PlanSliceRecord, type WorkbookPlan } from "./workbook-plan.js";
+import { sliceId, sliceLabel, toTeachingPlan, type PinnedSources, type PlanSliceRecord, type WorkbookPlan } from "./workbook-plan.js";
 import {
     REFERENCE_PAGE_PREFIX,
     REFERENCE_WORD_BUDGET,
@@ -364,7 +364,25 @@ function briefFor(
                       gradingCommand: plan.grading.join(" "),
                   },
         ...(needsTest(slice) ? { writeTest: testRequest(plan, slice) } : {}),
+        // What the epic's approved decision record supplied for this slice, once somebody pinned it.
+        // This is what the whole record gate buys: theory written from a named section, a named
+        // exemplar and a named refuted alternative rather than from a search (record #100).
+        ...(slice.sources === undefined ? {} : { sources: slice.sources }),
     };
+}
+
+/** What a brief says about the material this lesson's theory is written from. */
+function sourcesReport(sources: PinnedSources | undefined): string {
+    if (sources === undefined) return "";
+    const refuted: string =
+        sources.refuted === undefined
+            ? ""
+            : ` The alternative ${JSON.stringify(sources.refuted.alternative)} was refuted under ` +
+              `${JSON.stringify(sources.refuted.decision)}, and lost on ${sources.refuted.lostOn.replace(/\.$/, "")}.`;
+    return (
+        ` The theory is written from the decision record's section ${JSON.stringify(sources.section)}, ` +
+        `demonstrated by ${sources.exemplar}.${refuted}`
+    );
 }
 
 /** What a brief asks for on the concept this sitting's drill earned a reference page for. */
@@ -838,6 +856,7 @@ export function runTeachingSession(inputs: SessionInputs): SessionResult {
                         ? "."
                         : `, and a question and answer on ${revisit.join(", ")} — asked about again ` +
                           `because the last lesson took a hint on ${revisit.length === 1 ? "it" : "them"}.`) +
+                    sourcesReport(brief.sources) +
                     earnedReport(earned),
             },
             drift: gate.findings,

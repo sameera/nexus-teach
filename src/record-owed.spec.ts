@@ -13,7 +13,7 @@ import { recordBriefName, renderRecordBrief, type RecordLookup, type RecordReade
 import { type DecisionRecordState } from "./source-pinning";
 import { type LiveStory } from "./teaching-plan";
 import { runTeachingSession, type SessionResult } from "./teaching-session";
-import { runWorkbookCli, type WorkbookCliIo } from "./workbook-cli";
+import { lookupRecord, runWorkbookCli, type WorkbookCliIo } from "./workbook-cli";
 import { PLAN_FILENAME } from "./workbook-plan";
 import { createWorkbook, lessonsDir, workbookRoot } from "./workbook-store";
 
@@ -42,6 +42,8 @@ interface SliceSpec {
     builds: "learner" | "handoff";
     /** Whether the slice already carries pinned sources. */
     pinned?: boolean;
+    /** Whether those pinned sources also name the alternative the record's decision refuted. */
+    refuted?: boolean;
 }
 
 const LEARNER_SLICE: SliceSpec = { story: STORY, builds: "learner" };
@@ -68,7 +70,19 @@ function planText(slices: readonly SliceSpec[]): string {
             `      title: Story ${slice.story} teaches something`,
             `      body: As a learner, I want slice ${slice.story}.`,
             ...(slice.pinned === true
-                ? ["    sources:", "      section: The stop turns on the record", "      exemplar: src/record-owed.ts"]
+                ? [
+                      "    sources:",
+                      "      section: The stop turns on the record",
+                      "      exemplar: src/record-owed.ts",
+                      ...(slice.refuted === true
+                          ? [
+                                "      refuted:",
+                                "        decision: The stop turns on the record",
+                                "        alternative: Stop on absent sources alone",
+                                "        lost_on: the installed base",
+                            ]
+                          : []),
+                  ]
                 : []),
         );
     }
@@ -553,5 +567,172 @@ describe("where the brief says to write the record (story #98)", () => {
         expect(text).toContain("Repository the epic issue lives in: github.com/acme/widgets");
         expect(text).toContain("Repository the workbook lives in: acme/workbook");
         expect(text).toContain(`Run \`/nxs.decision-record ${EPIC}\` in: github.com/acme/widgets — the workspace hub`);
+    });
+});
+
+
+/**
+ * The seam this story's proof crosses is a real sitting: the session, the record command, the step
+ * that pins sources, and the next session. None of that is hermetic to one function, so the proof
+ * drives the committed chain end to end with the epic's record flipped from absent to
+ * approved-and-pinned between two runs (record #100's third ADDRESS risk).
+ */
+describe("approving the record pins the sources, and the next session teaches from them (story #99)", () => {
+    const RECORD: number = 100;
+    const EXEMPLAR: string = "src/record-owed.ts";
+
+    /** The epic as this checkout resolved it. `record` absent is the epic the learner just planned. */
+    function resolveEpic(repo: string, record: number | null): void {
+        const out: string = path.join(repo, ".nexus", "tmp", `epic-${EPIC}`, "epic.md");
+        fs.mkdirSync(path.dirname(out), { recursive: true });
+        fs.writeFileSync(
+            out,
+            `---\nepic: "The learner-planned epic"\nlink: "#${EPIC}"\n` + (record === null ? "" : `record: "#${record}"\n`) + "---\n\n# Epic\n",
+        );
+    }
+
+    /** The whole checkout as the command line meets it: `gh` answers for stories and for the record. */
+    function cliRunner(approved: boolean): Runner {
+        return (cmd, args, opts): RunResult => {
+            if (cmd === "gh" && args[0] === "issue") {
+                const live: LiveStory = LIVE[Number(args[2])];
+                return { status: 0, stdout: JSON.stringify({ title: live.title, body: live.body, closedAt: null }), stderr: "" };
+            }
+            if (cmd === "gh" && args[0] === "api") {
+                return {
+                    status: 0,
+                    stdout: JSON.stringify({ body: RECORD_BODY, state: approved ? "closed" : "open", state_reason: null }),
+                    stderr: "",
+                };
+            }
+            return runner()(cmd, args, opts);
+        };
+    }
+
+    /** What an agent read out of the record and the diff, for every learner slice of the epic. */
+    function sourcesFile(repo: string, stories: readonly number[]): string {
+        const file: string = path.join(repo, "sources.yml");
+        fs.writeFileSync(
+            file,
+            ["sources:", ...stories.flatMap((story) => [`  - story: ${story}`, "    section: The stop turns on the record", `    exemplar: ${EXEMPLAR}`])].join("\n") + "\n",
+        );
+        return file;
+    }
+
+    /** The record reader the command line itself builds, called through the committed lookup. */
+    function reads(repo: string, approved: boolean): RecordReader {
+        return (epic: number): RecordLookup => lookupRecord(repo, epic, cliRunner(approved));
+    }
+
+    function pin(repo: string, approved: boolean, stories: readonly number[]): { code: number; out: string[]; err: string[] } {
+        const out: string[] = [];
+        const err: string[] = [];
+        const io: WorkbookCliIo = { cwd: repo, stdout: (line) => out.push(line), stderr: (line) => err.push(line) };
+        const code: number = runWorkbookCli(
+            ["pin", "rdl", "--root", repo, "--epic", String(EPIC), ...(approved ? ["--sources", sourcesFile(repo, stories)] : [])],
+            io,
+            cliRunner(approved),
+        );
+        return { code, out, err };
+    }
+
+    it("pins every learner slice of the epic once the record is approved, and the next session teaches from them", () => {
+        const repo = makeRepo([LEARNER_SLICE, { story: 98, builds: "learner" }]);
+        resolveEpic(repo, null);
+
+        // The first sitting: no record exists, so nothing is taught and the brief is owed.
+        const stopped = runTeachingSession({
+            repoRoot: repo,
+            slug: "rdl",
+            read: (story) => LIVE[story] ?? null,
+            readRecord: reads(repo, false),
+            run: cliRunner(false),
+            now: () => "2026-09-21T12:00:00.000Z",
+        });
+        expect(stopped.outcome.kind).toBe("record-owed");
+        expect(fs.readdirSync(lessonsDir(repo, "rdl"))).toEqual([]);
+        expect(listLearnerRecords(repo, "record-briefs")).toEqual([`epic-${EPIC}.md`]);
+
+        // The learner writes the record, approves it, re-resolves the epic and pins — the five steps
+        // the brief named, in the brief's own order.
+        resolveEpic(repo, RECORD);
+        const pinned = pin(repo, true, [STORY, 98]);
+        expect(pinned.err).toEqual([]);
+        expect(pinned.code).toBe(0);
+        expect(pinned.out.join("\n")).toContain("pinned sources for 2 slices");
+
+        // The next sitting teaches the first of them, and the brief carries what the record supplied.
+        const taught = runTeachingSession({
+            repoRoot: repo,
+            slug: "rdl",
+            read: (story) => LIVE[story] ?? null,
+            readRecord: reads(repo, true),
+            run: cliRunner(true),
+            now: () => "2026-09-21T13:00:00.000Z",
+        });
+        expect(taught.outcome.kind).toBe("brief");
+        if (taught.outcome.kind !== "brief") throw new Error("expected the lesson brief");
+        expect(taught.outcome.brief.story).toBe(STORY);
+        expect(taught.outcome.brief.sources).toEqual({ section: "The stop turns on the record", exemplar: EXEMPLAR });
+        expect(taught.outcome.report).toContain("The stop turns on the record");
+        expect(taught.outcome.report).toContain(EXEMPLAR);
+        // And nothing new is owed: the stop cleared because the slice carries sources, and nothing else did it.
+        expect(taught.notes.join(" ")).not.toContain("decision record");
+
+        // The same second sitting through the command line the learner actually runs.
+        const out: string[] = [];
+        const err: string[] = [];
+        const io: WorkbookCliIo = { cwd: repo, stdout: (line) => out.push(line), stderr: (line) => err.push(line) };
+        expect(runWorkbookCli(["teach", "rdl", "--root", repo], io, cliRunner(true))).toBe(0);
+        expect(err).toEqual([]);
+        expect(out.join("\n")).toContain("The stop turns on the record");
+        expect(out.join("\n")).toContain(EXEMPLAR);
+    });
+
+    it("pins nothing and says the record is not approved yet, so the slice still owes what it owed", () => {
+        const repo = makeRepo();
+        resolveEpic(repo, RECORD);
+
+        const result = pin(repo, false, [STORY]);
+
+        expect(result.code).toBe(0);
+        expect(result.out.join("\n")).toContain(`decision record #${RECORD} for epic #${EPIC} is not approved yet`);
+        expect(result.out.join("\n")).toContain("nothing was pinned");
+        const session = runTeachingSession({
+            repoRoot: repo,
+            slug: "rdl",
+            read: (story) => LIVE[story] ?? null,
+            readRecord: reads(repo, false),
+            run: cliRunner(false),
+            now: () => "2026-09-21T12:00:00.000Z",
+        });
+        expect(session.outcome.kind).toBe("record-owed");
+        if (session.outcome.kind !== "record-owed") throw new Error("expected the record verdict");
+        expect(session.outcome.record).toBe(RECORD);
+    });
+
+    it("passes the refuted alternative and what it lost on into the brief, when the record states one", () => {
+        const repo = makeRepo([{ ...LEARNER_SLICE, pinned: true, refuted: true }]);
+
+        const result = teach(repo, { readRecord: APPROVED });
+
+        if (result.outcome.kind !== "brief") throw new Error("expected the lesson brief");
+        expect(result.outcome.brief.sources?.refuted).toEqual({
+            decision: "The stop turns on the record",
+            alternative: "Stop on absent sources alone",
+            lostOn: "the installed base",
+        });
+        expect(result.outcome.report).toContain("Stop on absent sources alone");
+        expect(result.outcome.report).toContain("the installed base");
+    });
+
+    it("briefs a slice with no sources exactly as it did before any of this existed", () => {
+        const repo = makeRepo();
+
+        const result = teach(repo, { readRecord: APPROVED });
+
+        if (result.outcome.kind !== "brief") throw new Error("expected the lesson brief");
+        expect(result.outcome.brief.sources).toBeUndefined();
+        expect(result.outcome.report).not.toContain("The theory is written from the decision record's section");
     });
 });
