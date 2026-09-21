@@ -11,6 +11,7 @@ arrival, the concept it drills first, and where it pauses.
 
 - **One session teaches one lesson, written on arrival** — [#4](https://github.com/sameera/nexus-teach/issues/4) (filed in Nexus as #407)
 - **A stub is planned when the learner reaches it** — [#67](https://github.com/sameera/nexus-teach/issues/67)
+- **The decision record is written before the lesson needs it** — [#68](https://github.com/sameera/nexus-teach/issues/68)
 
 ## Notes
 
