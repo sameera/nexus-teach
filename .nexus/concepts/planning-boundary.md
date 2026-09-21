@@ -1,9 +1,9 @@
 ---
 title: "Planning Boundary"
 aliases: ["planning boundary", "where planning stops", "unplanned list", "partial plan", "epics the plan did not cover", "how much of the roadmap the plan covers", "nothing planned yet"]
-touches: ["roadmap-members", "story-concept-extraction", "plan-draft", "plan-approval-gate", "teaching-plan", "plan-re-approval"]
+touches: ["roadmap-members", "story-concept-extraction", "plan-draft", "plan-approval-gate", "teaching-plan", "plan-re-approval", "planning-brief"]
 domain: "roadmap-planning"
-last_updated_by: "#66"
+last_updated_by: "#67"
 status: active
 verification: verified
 ---
@@ -38,9 +38,14 @@ A roadmap with no planned member stops the chain at extraction. The workbook and
 - [plan-approval-gate](plan-approval-gate.md) — prints the boundary last, immediately before the reviewer decides, and refuses a draft missing a slice for a story the roadmap holds.
 - [teaching-plan](teaching-plan.md) — the committed plan this list is written into, after its slices.
 - [plan-re-approval](plan-re-approval.md) — derives the list again from the roadmap it is approving, so a member planned since the last approval leaves the boundary.
+- [planning-brief](planning-brief.md) — reads this list's first entry to name the epic a learner plans next, and is the only reader of it.
 
 ## Decision Log
 
 ### 2026-09-20 — #66 — The plan records where planning stopped, and every reader takes it from what it already holds
 
 A roadmap a learner is taught from is still growing, so part of it is routinely unplanned, and until now the chain simply planned less and said so nowhere. A reader could not tell a roadmap that was planned in full from one that ran out halfway, because both produced a plan that named only slices. The boundary is therefore written down rather than left to be inferred from what is absent. It is recorded as a list beside the slices rather than as slices of a new kind, because the teaching order, the home page, the drift check and the handoff prompt all read slices, and each would have needed a rule for skipping one kind of slice. An entry carries a number and a title alone, because an unplanned member is never taught, so a pinned state on it would only give the workbook a way to stall over an epic the plan never covered. Approval refuses a draft that has no slice for a story the roadmap now holds, which is what makes the recorded list the true complement of the slices rather than merely the members the draft happened to miss. Refuted alternative: record the unplanned members on the draft, so the gate and approval read one artifact instead of each reading the roadmap. It is better for single-sourcing, and a competent engineer would reach for it. It lost on the fingerprint the gate records over the draft it printed: putting the boundary there changes that fingerprint on every mixed roadmap, which weakens the one value that proves the reviewer approved what they read. Refuted alternative: model each unplanned member as a slice carrying nothing, which every existing reader would surface with no change and which preserves the roadmap's order for free. It lost on what it costs those readers, because a reader that missed the skip rule would put an epic nobody has planned into the learner's teaching order. Refuted alternative: always write the list, empty when nothing sits past the boundary, so a reader can tell a boundary-aware plan from an older one. It lost because absent and empty say the identical thing to every reader of the plan, and because an unchanged committed artifact on a fully planned roadmap is what this work had to deliver.
+
+### 2026-09-20 — #67 — The recorded list gained its reader
+
+The list was written down so that a reader could tell a plan that covered its whole roadmap from one that stopped partway, and until now nothing read it back. A session that runs out of taught slices now takes its first entry, in the roadmap's own order, as the epic the learner plans next. Nothing about what the list holds changed to allow that: an entry still carries a number and a title and nothing else, and those two are exactly what naming the epic needs. Invariant 4 also stands as written. An entry still never enters the teaching order, the reading order, the drift comparison or a handoff prompt; the session reads the list at the point it has stopped teaching, which is not any of those. The body here is unchanged because it sits at the word cap. This entry also records the reciprocal link to planning-brief.

@@ -4,7 +4,7 @@
 
 # Concept Atlas
 
-Orientation map of the concept store — 39 active concepts. Each links to its full page
+Orientation map of the concept store — 40 active concepts. Each links to its full page
 (behavior, invariants, decision history); code locations live in the matching
 `.nexus/anchors/<slug>.md` sidecar.
 
@@ -73,6 +73,7 @@ Orientation map of the concept store — 39 active concepts. Each links to its f
 - [Handoff Prompt](../.nexus/concepts/handoff-prompt.md) — A slice the plan marks as not the learner's to build is handed to a separate coding-agent session rather than taught.
 - [Just-In-Time Lesson](../.nexus/concepts/just-in-time-lesson.md) — A lesson is written at the moment the learner reaches it, and never before.
 - [Plan Drift Gate](../.nexus/concepts/plan-drift-gate.md) — A learner follows a plan approved at one moment and a repository that keeps changing.
+- [Planning Brief](../.nexus/concepts/planning-brief.md) — A learner taught every slice of a plan that still records epics past the planning boundary has not finished the workbook; the next thing to do is plan the next epic.
 - [Return Verification](../.nexus/concepts/return-verification.md) — A learner returning from a pause comes back to a repository somebody else has been writing in, so the session verifies it before teaching again.
 - [Teaching Session](../.nexus/concepts/teaching-session.md) — A learner opens a workbook by running a session, and one session teaches one lesson.
 - [Workbook Handoff](../.nexus/concepts/workbook-handoff.md) — A workbook session that pauses at a handoff comes back to it.

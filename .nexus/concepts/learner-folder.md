@@ -1,9 +1,9 @@
 ---
 title: "Learner Folder"
 aliases: ["learner store", "personal records", "one ignore rule", "learner ignore guard", "per-learner state"]
-touches: ["workbook-store", "workbook-handoff", "lesson-renderer", "cold-drill", "just-in-time-lesson", "handoff-prompt", "focus-marking"]
+touches: ["workbook-store", "workbook-handoff", "lesson-renderer", "cold-drill", "just-in-time-lesson", "handoff-prompt", "focus-marking", "planning-brief"]
 domain: "workbook-rendering/store"
-last_updated_by: "#691"
+last_updated_by: "#67"
 status: active
 verification: verified
 ---
@@ -35,6 +35,7 @@ The folder is a direct child of the store rather than of each workbook, so a sec
 - [just-in-time-lesson](just-in-time-lesson.md) — reads the same hint counts to decide which concepts the next lesson comes back to.
 - [handoff-prompt](handoff-prompt.md) — the prompt is kept here, so it is never a page and can never appear as drift.
 - [focus-marking](focus-marking.md) — files each verdict's reason here, so the one line saying why a slice was handed off survives for the reviewer.
+- [planning-brief](planning-brief.md) — kept here under a record kind of its own, so it is never a page and never read as an open pause.
 
 ## Decision Log
 
@@ -53,3 +54,7 @@ The planning pass that marks a slice records one line saying why, and that line 
 ### 2026-09-19 — #691 — Moved here from the Nexus repository
 
 The teaching stage now ships as a package of its own, and this page came with it, decision log and all. Nothing it asserts changed; the store it is asserted in did. The Nexus repository keeps a retired forwarding entry under this slug, so a reader who greps the old name is told where the page went rather than finding nothing.
+
+### 2026-09-20 — #67 — Reciprocal link from planning-brief
+
+Mechanical reciprocity fan-out: a session that reaches the planning boundary now files the brief for planning the next epic here, under a record kind of its own rather than among the pauses. The pauses folder is what the session scans to decide whether a learner is returning from a handoff, and a brief can never be resolved, so a record that is not a pause does not belong in the set that answers whether anything is outstanding. Nothing this page asserts changed; one more kind of personal record arrived, under the same ignore guard as the rest.

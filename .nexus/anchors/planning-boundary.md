@@ -1,6 +1,6 @@
 ---
 concept: planning-boundary
-source_sha: 2ecb1ed1026c1ae151dee9c3bd5c18ee7fcd0b66
+source_sha: bea350eead91be2c0b9e90c6cf002422cc1a12cc
 generated: 2026-09-20
 ---
 
@@ -19,3 +19,4 @@ generated: 2026-09-20
 - `src/plan-approval.spec.ts` — pins the printed block and the unchanged print on a fully planned roadmap (#90)
 - `src/concept-extraction.spec.ts` — pins the refusal given before any story is read (#90)
 - `components/commands/nxsx.teach-plan.md` — the phase text: what the chain runs over, what the plan records, and what the gate shows the reviewer (#90)
+- `src/planning-boundary.ts` — the first recorded entry read back as the epic a learner plans next (#96)
