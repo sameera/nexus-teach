@@ -103,8 +103,11 @@ nxsx workbook extract <name>
 ```
 
 This prints the story numbers still to extract — every story on a first run; on a re-run, only the
-ones whose list failed or whose text has changed. It stops before any subagent starts when the
-roadmap has no interview; report that and stop.
+ones whose list failed or whose text has changed. Only a planned member has stories, so an epic
+nobody has planned yet is never listed and this phase and every later one run over the planned
+members alone. It stops before any subagent starts when the roadmap has no interview, and when no
+member of the roadmap is planned — there is nothing to plan yet, and no draft is written; report
+either as it stands and stop.
 
 Start one `nxsx-concept-extractor` subagent per listed story, in parallel. Give each **only** the
 roadmap name and its story number — never a prompt built from the story's text, and never anything you

@@ -48,7 +48,7 @@ import { type Runner, defaultRunner } from "@nexus/workspace/run";
 import { readInterview, type InterviewRecord } from "./interview.js";
 import { readLearnerRecord, writeLearnerRecord } from "./learner-store.js";
 import { CONCEPT_IDENTIFIER, writePlanDraft, type PlanStub, type VocabularyEntry } from "./plan-draft.js";
-import { roadmapPath, type Roadmap, type RoadmapStory } from "./roadmap.js";
+import { hasPlannedMember, nothingPlannedYet, roadmapPath, type Roadmap, type RoadmapStory } from "./roadmap.js";
 
 /** How much one list may carry. "A short structured list" is a size a check can hold a list to. */
 export const EXTRACTION_LIMITS = { entries: 12, identifier: 48, gloss: 160 } as const;
@@ -364,6 +364,9 @@ export function draftFromExtractions(
     /** A reviewer's recorded mark overrides (epic #458). An override outlives re-plans until it is cleared. */
     marks: ReadonlyMap<number, "learner" | "handoff"> = new Map(),
 ): DraftResult {
+    // Extraction already stops a roadmap with nothing planned on it; refusing here as well is what
+    // keeps an empty draft from being written by a run that skipped extraction (record #89, invariant 4).
+    if (!hasPlannedMember(roadmap)) return { ok: false, problem: nothingPlannedYet(roadmap), failed: [] };
     const interview: InterviewRecord | null = readInterview(repoRoot, roadmap.name);
     if (interview === null) {
         return { ok: false, problem: `the roadmap ${roadmap.name} has no interview, so no slice can be marked. No stub was written.`, failed: [] };

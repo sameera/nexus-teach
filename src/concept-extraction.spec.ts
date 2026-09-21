@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { applyMerge, draftFromExtractions, proposedVocabulary, readExtractions, recordExtraction } from "./concept-extraction.js";
-import { recordInterview } from "./interview.js";
+import { readInterview, recordInterview } from "./interview.js";
 import { LEARNER_IGNORE_RULE } from "./learner-store.js";
 import { LESSON_PHASE_ENTRY_POINT, SHARED_REFERENCES, readPhaseEntryPoint } from "./phase-references.js";
 import { planDraftPath, readPlanDraft } from "./plan-draft.js";
@@ -294,5 +294,128 @@ describe("the pass reads the interview before anything else", () => {
         expect(runWorkbookCli(["extract", "alpha"], captured)).toBe(1);
         expect(captured.err.join("\n")).toContain("interview");
         expect(captured.out).toEqual([]);
+    });
+});
+
+/** A roadmap still growing: two planned epics and, between and after them, epics nobody has planned yet. */
+const MIXED: Roadmap = {
+    name: "mixed",
+    members: [
+        { number: 100, title: "Alpha", kind: "planned" },
+        { number: 150, title: "Not planned yet", kind: "unplanned", body: "UNPLANNED-BODY-150" },
+        { number: 200, title: "Beta", kind: "planned" },
+        { number: 250, title: "Also not planned", kind: "unplanned", body: "UNPLANNED-BODY-250" },
+    ],
+    stories: [
+        { number: 11, title: "Pin the plan", body: "BODY-ELEVEN", epic: 100, blockedBy: [], external: [] },
+        { number: 21, title: "Report drift", body: "BODY-TWENTY-ONE", epic: 200, blockedBy: [11], external: [] },
+    ],
+};
+
+/** A roadmap every member of which is an epic nobody has planned yet. */
+const UNPLANNED: Roadmap = {
+    name: "tail",
+    members: [
+        { number: 150, title: "Not planned yet", kind: "unplanned", body: "UNPLANNED-BODY-150" },
+        { number: 250, title: "Also not planned", kind: "unplanned", body: "UNPLANNED-BODY-250" },
+    ],
+    stories: [],
+};
+
+describe("a roadmap holding epics nobody has planned yet runs the chain over its planned members", () => {
+    function extractMixed(repo: string): void {
+        recordExtraction(repo, MIXED, 11, listFor(11, [["pinned-state", "the state a plan records at approval"]]));
+        recordExtraction(repo, MIXED, 21, listFor(21, [["drift", "a story moving after it was pinned"]], [["pinned-state", "the recorded state"]]));
+    }
+
+    it("lists every story of every planned member for extraction, and no member without stories", () => {
+        const repo: string = planned(MIXED);
+        const captured: Captured = io(repo);
+        expect(runWorkbookCli(["extract", "mixed"], captured)).toBe(0);
+        const listed: number[] = (JSON.parse(captured.out.join("\n")) as { extract: number[] }).extract;
+        expect(listed).toEqual([11, 21]);
+        for (const member of [150, 250]) expect(listed).not.toContain(member);
+        expect(captured.out.join("\n")).not.toContain("UNPLANNED-BODY");
+    });
+
+    it("hands no subagent a member that has no stories", () => {
+        const repo: string = planned(MIXED);
+        const captured: Captured = io(repo);
+        expect(runWorkbookCli(["extract", "mixed", "--story", "150"], captured)).toBe(1);
+        expect(captured.out.join("\n")).not.toContain("UNPLANNED-BODY-150");
+    });
+
+    it("prints a vocabulary holding only identifiers proposed from the planned members' stories", () => {
+        const repo: string = planned(MIXED);
+        extractMixed(repo);
+        const captured: Captured = io(repo);
+        expect(runWorkbookCli(["vocabulary", "mixed"], captured)).toBe(0);
+        const shown = JSON.parse(captured.out.join("\n")) as { identifiers: { id: string; stories: number[] }[]; missing: number[] };
+        expect(shown.identifiers.map((i) => i.id)).toEqual(["drift", "pinned-state"]);
+        expect(shown.identifiers.flatMap((i) => i.stories).every((s) => s === 11 || s === 21)).toBe(true);
+        expect(shown.missing).toEqual([]);
+    });
+
+    it("drafts and rewrites one slice per planned story and none naming a member without stories", () => {
+        const repo: string = planned(MIXED);
+        extractMixed(repo);
+        const merge: string = path.join(repo, "merge.yml");
+        fs.writeFileSync(merge, "concepts:\n  - [pinned-state]\n  - [drift]\n");
+        expect(runWorkbookCli(["draft", "mixed", "--merge", merge], io(repo))).toBe(0);
+        expect(readPlanDraft(repo, "mixed")?.slices.map((s) => s.story)).toEqual([11, 21]);
+        expect(runWorkbookCli(["rewrite", "mixed"], io(repo))).toBe(0);
+        const rewritten = readPlanDraft(repo, "mixed");
+        expect(rewritten?.slices.map((s) => s.story)).toEqual([11, 21]);
+        const text: string = fs.readFileSync(planDraftPath(repo, "mixed"), "utf8");
+        for (const member of ["150", "250", "UNPLANNED-BODY", "Not planned yet"]) expect(text).not.toContain(member);
+    });
+
+    it("rewrites an unchanged mixed roadmap to the same slices in the same order", () => {
+        const repo: string = planned(MIXED);
+        extractMixed(repo);
+        const merge: string = path.join(repo, "merge.yml");
+        fs.writeFileSync(merge, "concepts:\n  - [pinned-state]\n  - [drift]\n");
+        runWorkbookCli(["draft", "mixed", "--merge", merge], io(repo));
+        runWorkbookCli(["rewrite", "mixed"], io(repo));
+        const first: string = fs.readFileSync(planDraftPath(repo, "mixed"), "utf8");
+        runWorkbookCli(["draft", "mixed", "--merge", merge], io(repo));
+        runWorkbookCli(["rewrite", "mixed"], io(repo));
+        expect(fs.readFileSync(planDraftPath(repo, "mixed"), "utf8")).toBe(first);
+    });
+});
+
+describe("a roadmap every member of which is an epic nobody has planned yet", () => {
+    it("stops at extraction, says there is nothing to plan yet, and lists no story", () => {
+        const repo: string = planned(UNPLANNED);
+        const captured: Captured = io(repo);
+        expect(runWorkbookCli(["extract", "tail"], captured)).toBe(1);
+        expect(captured.err.join("\n")).toContain("nothing to plan yet");
+        expect(captured.out).toEqual([]);
+    });
+
+    it("writes no draft, even when extraction is skipped", () => {
+        const repo: string = planned(UNPLANNED);
+        const merge: string = path.join(repo, "merge.yml");
+        fs.writeFileSync(merge, "concepts: []\n");
+        const captured: Captured = io(repo);
+        expect(runWorkbookCli(["draft", "tail", "--merge", merge], captured)).toBe(1);
+        expect(captured.err.join("\n")).toContain("nothing to plan yet");
+        expect(fs.existsSync(planDraftPath(repo, "tail"))).toBe(false);
+    });
+
+    it("reads the members' stated kind, not an empty story list", () => {
+        // A planned epic whose stories were all withdrawn contributes no stories and is still planned,
+        // so it is not refused as having nothing planned.
+        const withdrawn: Roadmap = { name: "withdrawn", members: [{ number: 300, title: "Withdrawn", kind: "planned" }], stories: [] };
+        const repo: string = planned(withdrawn);
+        const captured: Captured = io(repo);
+        expect(runWorkbookCli(["extract", "withdrawn"], captured)).toBe(0);
+        expect(captured.err.join("\n")).not.toContain("nothing to plan yet");
+    });
+
+    it("leaves the workbook's interview in place", () => {
+        const repo: string = planned(UNPLANNED);
+        runWorkbookCli(["extract", "tail"], io(repo));
+        expect(readInterview(repo, "tail")).not.toBeNull();
     });
 });

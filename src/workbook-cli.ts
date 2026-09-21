@@ -45,7 +45,9 @@ import { approvePlan, carriedStubs, draftFingerprint, type Approval } from "./pl
 import {
     epicsFromInitiative,
     epicsFromQuery,
+    hasPlannedMember,
     nameFromTitle,
+    nothingPlannedYet,
     readRoadmap,
     resolveRoadmap,
     writeRoadmap,
@@ -562,6 +564,12 @@ function runExtract(repoRoot: string, name: string, flags: Flags, io: WorkbookCl
     }
     const roadmap: Roadmap | null = resolvedRoadmap(repoRoot, name, io);
     if (roadmap === null) return 1;
+    // Extraction is the first phase that reads stories, so a roadmap with nothing planned on it stops
+    // here, once, before any is read (record #89, invariant 4).
+    if (!hasPlannedMember(roadmap)) {
+        io.stderr(nothingPlannedYet(roadmap));
+        return 1;
+    }
     // The focus comes from the recorded interview and from nowhere else: the pass asks the learner
     // nothing, so a roadmap with no interview stops here, before any subagent can start.
     const interview: InterviewRecord | null = readInterview(repoRoot, name);
