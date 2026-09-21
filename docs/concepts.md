@@ -4,7 +4,7 @@
 
 # Concept Atlas
 
-Orientation map of the concept store — 38 active concepts. Each links to its full page
+Orientation map of the concept store — 39 active concepts. Each links to its full page
 (behavior, invariants, decision history); code locations live in the matching
 `.nexus/anchors/<slug>.md` sidecar.
 
@@ -39,6 +39,7 @@ Orientation map of the concept store — 38 active concepts. Each links to its f
 
 ## Roadmap Planning
 
+- [Planning Boundary](../.nexus/concepts/planning-boundary.md) — A roadmap that still holds epics nobody has planned yet is planned as far as planned work goes, and says where that point is.
 - [Roadmap Members](../.nexus/concepts/roadmap-members.md) — A resolved roadmap holds one ordered list of members, and a member is either an epic that has been planned or an epic nobody has planned yet.
 - [Roadmap Naming](../.nexus/concepts/roadmap-naming.md) — A roadmap's member set is named in one of three ways: a list of epic issue numbers, one search that returns them, or one initiative issue number standing for the epics beneath it.
 - [Roadmap Resolution](../.nexus/concepts/roadmap-resolution.md) — Every issue number a roadmap was named by goes to the shared epic resolver unchanged, and exactly one of that resolver's refusals, the one it raises for an epic identified but not planned, becomes an unplanned member instead of an error.

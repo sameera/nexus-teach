@@ -1,9 +1,9 @@
 ---
 title: "Plan Re-Approval"
 aliases: ["re-approval", "taught prefix", "carried slice", "re-plan after drift", "carried forward unchanged", "identifier rename refusal"]
-touches: ["plan-approval-gate", "plan-rewrite", "plan-drift-gate", "teaching-plan", "pinned-sources"]
+touches: ["plan-approval-gate", "plan-rewrite", "plan-drift-gate", "teaching-plan", "pinned-sources", "planning-boundary"]
 domain: "roadmap-planning/approval"
-last_updated_by: "#691"
+last_updated_by: "#66"
 status: active
 verification: verified
 ---
@@ -37,6 +37,7 @@ A carried slice keeps its identity, its order, its concepts, its lesson, its bra
 - [plan-drift-gate](plan-drift-gate.md) — the stop that sends a learner here, and which re-approval is the only way past.
 - [teaching-plan](teaching-plan.md) — the approved plan a re-approval reads the taught part from and replaces whole.
 - [pinned-sources](pinned-sources.md) — sources pinned from an approved record, which a re-approval keeps on every slice that stays a learner slice.
+- [planning-boundary](planning-boundary.md) — derived again at each approval, so a member planned since the last one leaves the boundary and enters the slices.
 
 ## Decision Log
 
@@ -51,3 +52,7 @@ A slice may now carry sources pinned from its epic's approved decision record. A
 ### 2026-09-19 — #691 — Moved here from the Nexus repository
 
 The teaching stage now ships as a package of its own, and this page came with it, decision log and all. Nothing it asserts changed; the store it is asserted in did. The Nexus repository keeps a retired forwarding entry under this slug, so a reader who greps the old name is told where the page went rather than finding nothing.
+
+### 2026-09-20 — #66 — The boundary is derived again at every approval, and never carried forward
+
+A re-approval carries the taught slices forward, and it does not carry the previous plan's record of where planning stopped. That list is derived again from the roadmap being approved against, because a member planned since the last approval must leave the boundary and enter the plan as slices, and carrying the earlier list forward would freeze a boundary that has already moved. Nothing stores the list between approvals, so this holds by construction rather than by a rule a later change could forget. The body here is unchanged because it sits at the word cap. The planning-boundary page states the rule in full. This entry also records the reciprocal link from planning-boundary.

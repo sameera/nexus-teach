@@ -1,9 +1,9 @@
 ---
 title: "Teaching Plan"
 aliases: ["plan of slices", "slice", "pinned story state", "declared suite command", "grading command", "control test", "handoff slice", "lesson stub", "committed plan", "dependency edges", "per-slice epic"]
-touches: ["workbook-store", "teaching-session", "plan-drift-gate", "just-in-time-lesson", "return-verification", "handoff-prompt", "plan-draft", "scaffold-slice", "slice-identity", "plan-approval-gate", "plan-field-ownership", "plan-re-approval", "workbook-home-page", "pinned-sources"]
+touches: ["workbook-store", "teaching-session", "plan-drift-gate", "just-in-time-lesson", "return-verification", "handoff-prompt", "plan-draft", "scaffold-slice", "slice-identity", "plan-approval-gate", "plan-field-ownership", "plan-re-approval", "workbook-home-page", "pinned-sources", "planning-boundary"]
 domain: "roadmap-planning"
-last_updated_by: "#691"
+last_updated_by: "#66"
 status: active
 verification: verified
 ---
@@ -46,6 +46,7 @@ Nothing infers the commands. A green light is worth exactly what the command beh
 - [plan-re-approval](plan-re-approval.md) — the pass that replaces this file after a story drifts, carrying the taught slices forward unchanged.
 - [workbook-home-page](workbook-home-page.md) — the page drawn from the dependency edges this file records, which is why approval writes them here.
 - [pinned-sources](pinned-sources.md) — the lesson material a learner slice here carries once its epic's record is approved.
+- [planning-boundary](planning-boundary.md) — the list written into this file after its slices, naming the roadmap's members the plan did not cover.
 
 ## Decision Log
 
@@ -72,3 +73,7 @@ The contract gained an optional sources field on a slice, so the material a less
 ### 2026-09-19 — #691 — Moved here from the Nexus repository
 
 The teaching stage now ships as a package of its own, and this page came with it, decision log and all. Nothing it asserts changed; the store it is asserted in did. The Nexus repository keeps a retired forwarding entry under this slug, so a reader who greps the old name is told where the page went rather than finding nothing.
+
+### 2026-09-20 — #66 — The committed plan records the members it did not plan
+
+The plan gained one list, written after its slices: the roadmap's members nobody had planned when it was approved, each as an issue number and a title, in the roadmap's own member order. A reader can now name every epic the plan did not cover without returning to the issue graph. The list is omitted rather than written empty when every member was planned, because this file holds no placeholders, and absent and empty say the same thing to every reader of it. It is read back as deliberately as it is written, because this file is parsed and rewritten in place whenever a session pins a test, and a field written but not read back would be dropped with no diagnostic by the first session. An entry is never a slice, and nothing teaches it. This entry also records the reciprocal link from planning-boundary.

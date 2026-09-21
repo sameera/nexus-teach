@@ -1,6 +1,6 @@
 ---
 concept: story-concept-extraction
-source_sha: bfeac465b032b00980a496ad8af2692890046f52
+source_sha: 2ecb1ed1026c1ae151dee9c3bd5c18ee7fcd0b66
 generated: 2026-09-20
 ---
 
@@ -9,8 +9,8 @@ generated: 2026-09-20
 
 # Code Anchors: Story Concept Extraction
 
-- `src/concept-extraction.ts` — the check of shape, identifier form and size, the kept lists, and the story-text digest each list is held against (#551)
-- `src/concept-extraction.spec.ts` — pins one story per unit, the refusal cut to size, the explicit-nothing rule, and re-extraction of only the changed story (#551)
-- `src/workbook-cli.ts` — the seam: the stories still to extract, one story's text for its unit, the list to check, and the handed-off lists the coverage check reads (#563)
+- `src/concept-extraction.ts` — the check of shape, identifier form and size, the kept lists, the story-text digest each list is held against, and the refusal for a roadmap with nothing planned (#90)
+- `src/concept-extraction.spec.ts` — pins one story per unit, the refusal cut to size, the explicit-nothing rule, re-extraction of only the changed story, and the stop before any story is read (#90)
+- `src/workbook-cli.ts` — the seam: the stories still to extract, one story's text for its unit, the list to check, the handed-off lists the coverage check reads, and the gate that stops a roadmap with nothing planned (#90)
 - `components/agents/nxsx-concept-extractor.md` — the extraction unit itself, started with a roadmap name and one story number (#551)
-- `components/commands/nxsx.teach-plan.md` — the planning phase that starts one unit per story and holds only the lists they hand back (#563)
+- `components/commands/nxsx.teach-plan.md` — the planning phase that starts one unit per story and holds only the lists they hand back (#90)

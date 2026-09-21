@@ -1,6 +1,6 @@
 ---
 concept: plan-draft
-source_sha: bfeac465b032b00980a496ad8af2692890046f52
+source_sha: 2ecb1ed1026c1ae151dee9c3bd5c18ee7fcd0b66
 generated: 2026-09-20
 ---
 
@@ -12,6 +12,7 @@ generated: 2026-09-20
 - `src/plan-draft.ts` — the stub contract, split parts and scaffold stubs, the declared set and verdict, the draft's location, and the whole-file replacement
 - `src/plan-draft.spec.ts` — pins the fields a stub may carry, several parts for one story, and the draft left untouched when a stub is refused
 - `src/handoff-stubs.spec.ts` — pins the handoff stub carrying its story and mark alone, and the sibling list the draft does not write
-- `src/concept-extraction.ts` — the one step that writes every stub, now under the reviewer's recorded mark overrides (#592)
+- `src/concept-extraction.ts` — the one step that writes every stub, under the reviewer's recorded mark overrides, and refusing a roadmap with no planned member (#90)
+- `src/concept-extraction.spec.ts` — pins that no draft is written for a roadmap with nothing planned on it (#90)
 - `src/plan-rewrite.ts` — the rewrite that reads this draft and replaces it whole
-- `src/workbook-cli.ts` — the draft write, the merge record kept beside it, and the derived records a rebuild at the gate reuses (#592)
+- `src/workbook-cli.ts` — the draft write, the merge record kept beside it, and the derived records a rebuild at the gate reuses (#90)
