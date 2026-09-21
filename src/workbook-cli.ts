@@ -54,15 +54,30 @@ import {
     type MemberResolver,
     type MemberResult,
     type Roadmap,
+    type RoadmapMember,
     type RoadmapProblem,
     type RoadmapResult,
     type RoadmapStory,
 } from "./roadmap.js";
 import { interviewSlate, readInterview, recordInterview, type GivenAnswer, type InterviewRecord } from "./interview.js";
-import { draftFromExtractions, extractionsDir, focusMatchedNothing, proposedVocabulary, readExtractions, recordExtraction, type CheckResult, type DraftResult } from "./concept-extraction.js";
+import {
+    draftFromExtractions,
+    extractionsDir,
+    focusMatchedNothing,
+    proposedVocabulary,
+    readEpicExtractions,
+    readExtractions,
+    recordEpicExtraction,
+    recordExtraction,
+    unplannedConcepts,
+    type CheckResult,
+    type DraftResult,
+    type EpicCheckResult,
+    type EpicExtractionState,
+} from "./concept-extraction.js";
 import { planDraftPath, readPlanDraft, writePlanDraft, type CoverageGap, type PlanDraft, type PlanStub } from "./plan-draft.js";
 import { rebuildDraft, refuseUncleanCoverage, renderGateDigest, type CoverageRefusal } from "./plan-approval.js";
-import { applyDeclaration, rewritePlan, type Declaration, type DeclarationResult } from "./plan-rewrite.js";
+import { applyDeclaration, rewritePlan, type Declaration, type DeclarationResult, type UnplannedConcepts } from "./plan-rewrite.js";
 import { resolveEpic, type ResolveEpicResult } from "@nexus/epic-resolve/resolve";
 import { fetchIssue } from "@nexus/epic-resolve/gh";
 import { defaultOutPath } from "@nexus/epic-resolve/write";
@@ -169,6 +184,8 @@ const USAGE: string = [
     "  interview <name> [--answers <file>] the slate to ask from, or the answers to record",
     "  extract <name> [--story <n> [--list <file>]]",
     "                                      the stories still to extract, one story's text, or its list to check",
+    "  extract <name> --epic <n> [--list <file>]",
+    "                                      one unplanned epic's title and body, or its list to check",
     "  vocabulary <name>                   every proposed concept identifier and its glosses",
     "  draft <name> --merge <file>         write the plan's stubs once every story has a checked list",
     "  rewrite <name> [--declare <file>]   rewrite the draft: one slice owns each concept, less what",
@@ -559,8 +576,12 @@ function resolvedRoadmap(repoRoot: string, name: string, io: WorkbookCliIo): Roa
  * read reaches the planning session.
  */
 function runExtract(repoRoot: string, name: string, flags: Flags, io: WorkbookCliIo, run: Runner): number {
-    if (flags.story === undefined && flags.list !== undefined) {
-        io.stderr(`workbook extract --list checks one story's list, so it needs --story\n${USAGE}`);
+    if (flags.story !== undefined && flags.epic !== undefined) {
+        io.stderr(`workbook extract reads one story or one unplanned epic, never both\n${USAGE}`);
+        return 2;
+    }
+    if (flags.story === undefined && flags.epic === undefined && flags.list !== undefined) {
+        io.stderr(`workbook extract --list checks one story's or one epic's list, so it needs --story or --epic\n${USAGE}`);
         return 2;
     }
     const roadmap: Roadmap | null = resolvedRoadmap(repoRoot, name, io);
@@ -582,9 +603,25 @@ function runExtract(repoRoot: string, name: string, flags: Flags, io: WorkbookCl
         return 1;
     }
 
+    if (flags.epic !== undefined) return runExtractEpic(repoRoot, roadmap, flags.epic, flags.list, io);
     if (flags.story === undefined) {
         const { current, missing } = readExtractions(repoRoot, roadmap);
-        io.stdout(JSON.stringify({ roadmap: name, extract: missing, checked: current.map((list) => list.story) }, null, 4));
+        // An unplanned epic is listed on its own key, and only when the roadmap holds one, so a fully
+        // planned roadmap's listing is what it was (record #105, invariant 8).
+        const epics: EpicExtractionState = readEpicExtractions(repoRoot, roadmap);
+        const unplanned: boolean = roadmap.members.some((member) => member.kind === "unplanned");
+        io.stdout(
+            JSON.stringify(
+                {
+                    roadmap: name,
+                    extract: missing,
+                    checked: current.map((list) => list.story),
+                    ...(unplanned ? { extractEpics: epics.missing, checkedEpics: epics.current.map((list) => list.epic) } : {}),
+                },
+                null,
+                4,
+            ),
+        );
         return 0;
     }
 
@@ -616,12 +653,45 @@ function runExtract(repoRoot: string, name: string, flags: Flags, io: WorkbookCl
     return 0;
 }
 
+/**
+ * One unplanned epic, for the one extraction subagent reading it (record #105). It is given only the
+ * epic's title and body — no focus, because no verdict is asked of an epic — and its checked list
+ * reaches the planning session only as the identifiers and glosses that passed.
+ */
+function runExtractEpic(repoRoot: string, roadmap: Roadmap, raw: string, list: string | undefined, io: WorkbookCliIo): number {
+    const number: number = Number(raw.replace(/^#/, ""));
+    const member: RoadmapMember | undefined = roadmap.members.find((m) => m.number === number && m.kind === "unplanned");
+    if (member === undefined) {
+        io.stderr(`${raw} is not an unplanned epic on the roadmap ${roadmap.name}, so there is nothing of it to extract.`);
+        return 1;
+    }
+    if (list === undefined) {
+        io.stdout(JSON.stringify({ epic: member.number, title: member.title, body: member.body ?? "" }, null, 4));
+        return 0;
+    }
+    const listFile: string = path.resolve(io.cwd, list);
+    const output: string = fs.readFileSync(listFile, "utf8");
+    const fromExtractor: string = path.relative(extractionsDir(repoRoot, roadmap.name), listFile);
+    if (fromExtractor !== "" && !fromExtractor.startsWith("..") && !path.isAbsolute(fromExtractor)) fs.rmSync(listFile, { force: true });
+    const result: EpicCheckResult = recordEpicExtraction(repoRoot, roadmap, number, output);
+    if (!result.ok) {
+        io.stderr(`no readable list for the unplanned epic #${number}: ${result.problem}`);
+        return 1;
+    }
+    io.stdout(JSON.stringify({ epic: number, introduces: result.list.introduces }, null, 4));
+    return 0;
+}
+
 /** `nexus workbook vocabulary` — every proposed identifier and its glosses, the only material the merge reads. */
 function runVocabulary(repoRoot: string, name: string, io: WorkbookCliIo): number {
     const roadmap: Roadmap | null = resolvedRoadmap(repoRoot, name, io);
     if (roadmap === null) return 1;
     const { current, missing } = readExtractions(repoRoot, roadmap);
-    io.stdout(JSON.stringify({ roadmap: name, identifiers: proposedVocabulary(current), missing }, null, 4));
+    const epics: EpicExtractionState = readEpicExtractions(repoRoot, roadmap);
+    const unplanned: boolean = roadmap.members.some((member) => member.kind === "unplanned");
+    io.stdout(
+        JSON.stringify({ roadmap: name, identifiers: proposedVocabulary(current, epics.current), missing, ...(unplanned ? { missingEpics: epics.missing } : {}) }, null, 4),
+    );
     return 0;
 }
 
@@ -690,6 +760,16 @@ function handoffConcepts(repoRoot: string, roadmap: Roadmap, draft: PlanDraft): 
 }
 
 /**
+ * What each unplanned epic will introduce, under the identifiers the draft's vocabulary keeps, in
+ * roadmap member order (record #105). Read from the lists taken from each epic's current text, so an
+ * epic whose body was edited contributes nothing until it is read again — and the gate's fresh check
+ * then refuses a recorded waiting list that no longer holds.
+ */
+function unplannedFor(repoRoot: string, roadmap: Roadmap, draft: PlanDraft): UnplannedConcepts[] {
+    return unplannedConcepts(readEpicExtractions(repoRoot, roadmap).current, draft.vocabulary ?? []);
+}
+
+/**
  * `nexus workbook rewrite` — the arithmetic pass over the stubs (epic #457).
  *
  * It reads the draft the planning pass wrote and replaces it whole. It re-reads no story, so a draft
@@ -718,10 +798,21 @@ function runRewrite(repoRoot: string, name: string, flags: Flags, io: WorkbookCl
         draft = applied.draft;
     }
     const roadmap: Roadmap = readRoadmap(repoRoot, name) as Roadmap;
+    // An unplanned epic with no list taken from its current text stops the rewrite, as it stops the
+    // draft: reading it as "introduces nothing" would bring back the scaffold its list holds back.
+    const epics: EpicExtractionState = readEpicExtractions(repoRoot, roadmap);
+    if (epics.missing.length > 0) {
+        io.stderr(
+            `no readable list for the unplanned ${epics.missing.length === 1 ? "epic" : "epics"} ${epics.missing.map((n) => `#${n}`).join(", ")}, ` +
+            `so the draft was not rewritten. Extract ${epics.missing.length === 1 ? "that epic" : "those epics"} again with --epic, then draft and rewrite.`,
+        );
+        return 1;
+    }
     const rewritten: PlanDraft = rewritePlan(draft, {
         edges: roadmap.stories.map((story) => ({ story: story.number, blockedBy: story.blockedBy })),
         handoffConcepts: handoffConcepts(repoRoot, roadmap, draft),
         carried: taughtPart(repoRoot, name),
+        unplanned: unplannedConcepts(epics.current, draft.vocabulary ?? []),
     });
     const introduced: number = rewritten.slices.reduce((count, stub) => count + stub.concepts.length, 0);
     io.stdout(
@@ -780,7 +871,7 @@ function runGate(repoRoot: string, name: string, flags: Flags, io: WorkbookCliIo
         return 1;
     }
     if (flags.approve === true) return runApprove(repoRoot, roadmap, draft, flags, io, run);
-    const refusal: CoverageRefusal = refuseUncleanCoverage(draft, handoffConcepts(repoRoot, roadmap, draft));
+    const refusal: CoverageRefusal = refuseUncleanCoverage(draft, handoffConcepts(repoRoot, roadmap, draft), [], unplannedFor(repoRoot, roadmap, draft));
     if (refusal.refused) {
         io.stderr(refusal.report);
         return 1;
@@ -828,6 +919,7 @@ function runApprove(repoRoot: string, roadmap: Roadmap, draft: PlanDraft, flags:
         read: ghIssueReader(repoRoot, run),
         commands,
         handoffConcepts: handoffConcepts(repoRoot, roadmap, draft),
+        unplannedConcepts: unplannedFor(repoRoot, roadmap, draft),
         previous,
         written,
         taughtConcepts: previous === null ? [] : readLessons(repoRoot, roadmap.name).flatMap((lesson) => {
@@ -898,6 +990,7 @@ function changeMark(repoRoot: string, roadmap: Roadmap, draft: PlanDraft, flags:
         edges: roadmap.stories.map((story) => ({ story: story.number, blockedBy: story.blockedBy })),
         handoffConcepts: handoffConcepts(repoRoot, roadmap, { ...draft, slices: fresh.slices }),
         carried: taughtPart(repoRoot, roadmap.name),
+        unplanned: unplannedFor(repoRoot, roadmap, stubs),
     });
     writePlanDraft(repoRoot, roadmap.name, rebuilt);
     return rebuilt;

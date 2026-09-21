@@ -18,6 +18,7 @@
 import { createHash } from "node:crypto";
 import { refuseUncleanCoverage, type CoverageRefusal } from "./plan-approval.js";
 import { renderPlanDraft, type PlanDraft, type PlanStub } from "./plan-draft.js";
+import { type UnplannedConcepts } from "./plan-rewrite.js";
 import { type Roadmap, type RoadmapStory } from "./roadmap.js";
 import { type IssueReader, type LiveStory } from "./teaching-plan.js";
 import { lessonNameFor, sliceId, type DeclaredCommands, type PlanSliceRecord, type UnplannedMember, type WorkbookPlan } from "./workbook-plan.js";
@@ -52,6 +53,8 @@ export interface ApprovalInput {
     /** The commands the reviewer declared, or null when none were declared. */
     commands: DeclaredCommands | null;
     handoffConcepts?: ReadonlyMap<number, readonly string[]>;
+    /** What each unplanned member will introduce, in roadmap member order (record #105). */
+    unplannedConcepts?: readonly UnplannedConcepts[];
     /** The plan already approved for this workbook, which makes this a re-approval. Null on a first approval. */
     previous?: WorkbookPlan | null;
     /** The lesson files the workbook holds. */
@@ -241,7 +244,7 @@ export function unplannedMembers(roadmap: Roadmap): UnplannedMember[] {
  */
 export function approvePlan(input: ApprovalInput): Approval {
     const { draft, roadmap } = input;
-    const coverage: CoverageRefusal = refuseUncleanCoverage(draft, input.handoffConcepts);
+    const coverage: CoverageRefusal = refuseUncleanCoverage(draft, input.handoffConcepts, [], input.unplannedConcepts);
     if (coverage.refused) return { ok: false, report: coverage.report };
 
     if (input.shown === null) {

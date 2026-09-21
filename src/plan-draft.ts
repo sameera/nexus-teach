@@ -104,10 +104,28 @@ export interface CoverageGap {
     handedOff?: number;
 }
 
+/**
+ * One concept a learner slice assumes that no planned story introduces and an unplanned epic will
+ * (epic #88). It is neither a gap nor background: the plan leaves it to the epic that will introduce
+ * it, so no scaffold teaches it away from the work that makes it concrete (record #105).
+ */
+export interface WaitingConcept {
+    concept: string;
+    /** The learner slice that assumes it, and so is taught before the concept is. */
+    story: number;
+    /** The first unplanned epic, in roadmap member order, whose list introduces it. */
+    epic: number;
+}
+
 /** What the coverage check found. A plan whose verdict is not clean does not reach the approval gate. */
 export interface CoverageVerdict {
     clean: boolean;
     gaps: CoverageGap[];
+    /**
+     * The concepts left to an unplanned epic. Present only when it holds at least one, so the draft of
+     * a fully planned roadmap is unchanged byte for byte (record #105, invariant 8).
+     */
+    waiting?: WaitingConcept[];
 }
 
 export interface PlanDraft {
@@ -311,7 +329,14 @@ export function renderPlanDraft(draft: PlanDraft): string {
     }
     if (valid.declared !== undefined) doc["declared"] = valid.declared.map((entry) => ({ ...entry }));
     if (valid.unmatched !== undefined) doc["unmatched"] = [...valid.unmatched];
-    if (valid.coverage !== undefined) doc["coverage"] = { clean: valid.coverage.clean, gaps: valid.coverage.gaps.map((gap) => ({ ...gap })) };
+    if (valid.coverage !== undefined) {
+        const waiting: WaitingConcept[] = valid.coverage.waiting ?? [];
+        doc["coverage"] = {
+            clean: valid.coverage.clean,
+            gaps: valid.coverage.gaps.map((gap) => ({ ...gap })),
+            ...(waiting.length === 0 ? {} : { waiting: waiting.map((entry) => ({ concept: entry.concept, story: entry.story, epic: entry.epic })) }),
+        };
+    }
     return stringify(doc, { indent: 4, flowCollectionPadding: false });
 }
 
@@ -333,6 +358,14 @@ export function writePlanDraft(repoRoot: string, roadmap: string, draft: PlanDra
     fs.writeFileSync(staged, text);
     fs.renameSync(staged, target);
     return target;
+}
+
+/** A recorded waiting list read back, or nothing when it holds no concept — as the draft writes it. */
+function readWaiting(raw: unknown): { waiting?: WaitingConcept[] } {
+    if (!Array.isArray(raw) || raw.length === 0) return {};
+    return {
+        waiting: (raw as Partial<WaitingConcept>[]).map((entry): WaitingConcept => ({ concept: String(entry.concept), story: Number(entry.story), epic: Number(entry.epic) })),
+    };
 }
 
 /** Read a roadmap's draft back, or null when none has been written. */
@@ -362,6 +395,7 @@ export function readPlanDraft(repoRoot: string, roadmap: string): PlanDraft | nu
                           story: Number(gap.story),
                           ...(gap.handedOff === undefined ? {} : { handedOff: Number(gap.handedOff) }),
                       })),
+                      ...readWaiting((doc["coverage"] as CoverageVerdict).waiting),
                   },
               }
             : {}),

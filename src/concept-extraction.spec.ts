@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { applyMerge, draftFromExtractions, proposedVocabulary, readExtractions, recordExtraction } from "./concept-extraction.js";
+import { applyMerge, draftFromExtractions, proposedVocabulary, readExtractions, recordEpicExtraction, recordExtraction } from "./concept-extraction.js";
 import { readInterview, recordInterview } from "./interview.js";
 import { LEARNER_IGNORE_RULE } from "./learner-store.js";
 import { LESSON_PHASE_ENTRY_POINT, SHARED_REFERENCES, readPhaseEntryPoint } from "./phase-references.js";
@@ -326,6 +326,7 @@ describe("a roadmap holding epics nobody has planned yet runs the chain over its
     function extractMixed(repo: string): void {
         recordExtraction(repo, MIXED, 11, listFor(11, [["pinned-state", "the state a plan records at approval"]]));
         recordExtraction(repo, MIXED, 21, listFor(21, [["drift", "a story moving after it was pinned"]], [["pinned-state", "the recorded state"]]));
+        for (const epic of [150, 250]) recordEpicExtraction(repo, MIXED, epic, JSON.stringify({ epic, nothing: true }));
     }
 
     it("lists every story of every planned member for extraction, and no member without stories", () => {

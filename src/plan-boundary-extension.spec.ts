@@ -2,6 +2,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
+import { recordEpicExtraction } from "./concept-extraction.js";
 import { ROADMAP, approve, committedPlan, gate, io, planned, teach, type Captured, type Planned } from "./plan-commit-fixtures.js";
 import { writePlanDraft, type PlanStub } from "./plan-draft.js";
 import { rewritePlan } from "./plan-rewrite.js";
@@ -80,6 +81,10 @@ function teachSlice(p: Planned, story: number, file: string): void {
 /** Run the planning chain again over the roadmap as it now stands, as far as a rewritten draft. */
 function replan(p: Planned, roadmap: Roadmap, stubs: PlanStub[]): void {
     writeRoadmap(p.repo, roadmap);
+    // Every epic still unplanned is read once; these introduce nothing the plan assumes.
+    for (const member of roadmap.members.filter((m) => m.kind === "unplanned")) {
+        expect(recordEpicExtraction(p.repo, roadmap, member.number, JSON.stringify({ epic: member.number, nothing: true })).ok).toBe(true);
+    }
     writePlanDraft(p.repo, "alpha", { slices: stubs });
     const captured: Captured = io(p.repo);
     expect(runWorkbookCli(["rewrite", "alpha", "--root", p.repo], captured, p.run)).toBe(0);
