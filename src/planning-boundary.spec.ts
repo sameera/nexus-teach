@@ -8,7 +8,7 @@ import { type RunResult, type Runner, defaultRunner } from "@nexus/workspace/run
 import { PROBE_SCRATCH_PATH } from "./fence-probe";
 import { learnerRecordDir, listLearnerRecords, readLearnerRecord } from "./learner-store";
 import { type AuthoredProse } from "./lesson-writer";
-import { planningBriefName } from "./planning-boundary";
+import { epicHome, planningBriefName, renderPlanningBrief, type EpicHome } from "./planning-boundary";
 import { type LiveStory } from "./teaching-plan";
 import { runTeachingSession, type SessionResult } from "./teaching-session";
 import { runWorkbookCli, type WorkbookCliIo } from "./workbook-cli";
@@ -344,5 +344,59 @@ describe("the learner is handed a brief for planning that epic (story #93)", () 
 
         expect(result.notes.join(" ")).toContain("the brief for planning #250 is written at");
         expect(result.skipped).toEqual([]);
+    });
+});
+
+describe("where the brief says to run the planning command (story #93)", () => {
+    /** A hub checkout: the manifest is all the workspace resolver needs to answer as a hub. */
+    function makeHub(remote: string): string {
+        const parent = makeDir();
+        const hub = path.join(parent, "nexus");
+        fs.mkdirSync(path.join(hub, ".nexus", "config"), { recursive: true });
+        fs.writeFileSync(
+            path.join(hub, ".nexus", "config", "workspace.yml"),
+            `hub:\n  name: nexus\n  remote: ${remote}\n`,
+        );
+        return hub;
+    }
+
+    it("names the hub by its remote identity, never by the folder the hub is checked out into", () => {
+        // The hub's `name` is a bare sibling directory name — the manifest loader refuses one that
+        // holds a path separator, so it can never be an owner/repo identity. A brief carrying it
+        // would print a local folder beside the workbook's real repository, both labelled the same
+        // way, and tell the learner to plan the epic in the folder (record #95's first risk).
+        const home: EpicHome = epicHome(makeHub("git@github.com:acme/widgets.git"), "acme/workbook");
+
+        expect(home.mode).toBe("workspace");
+        expect(home.repo).toBe("github.com/acme/widgets");
+        expect(home.repo).not.toBe("nexus");
+    });
+
+    it("answers identically however the hub's remote is spelled, so two checkouts of it agree", () => {
+        const scp: EpicHome = epicHome(makeHub("git@github.com:acme/widgets.git"), "acme/workbook");
+        const https: EpicHome = epicHome(makeHub("https://github.com/acme/widgets"), "acme/workbook");
+
+        expect(https.repo).toBe(scp.repo);
+    });
+
+    it("sends the learner to the hub rather than to the workbook's own repository, and says which is which", () => {
+        const text: string = renderPlanningBrief({
+            epic: { epic: 250, title: "Not planned yet" },
+            remaining: 1,
+            workbook: "wb",
+            workbookRepo: "acme/workbook",
+            home: epicHome(makeHub("git@github.com:acme/widgets.git"), "acme/workbook"),
+        });
+
+        expect(text).toContain("Repository the epic issue lives in: github.com/acme/widgets");
+        expect(text).toContain("Repository the workbook lives in: acme/workbook");
+        expect(text).toContain("Run `/nxs.epic 250` in: github.com/acme/widgets — the workspace hub");
+    });
+
+    it("names the workbook's own repository outside a workspace, where the two are the same one", () => {
+        const home: EpicHome = epicHome(makeDir(), "acme/workbook");
+
+        expect(home.mode).toBe("single-repo");
+        expect(home.repo).toBe("acme/workbook");
     });
 });
