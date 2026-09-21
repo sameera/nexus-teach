@@ -1,9 +1,9 @@
 ---
 title: "Scaffold Slice"
 aliases: ["scaffold", "teaching step", "slice with no story", "storyless slice", "scaffold restraint", "forced need", "background concept"]
-touches: ["plan-rewrite", "plan-draft", "coverage-check", "teaching-plan", "slice-identity"]
+touches: ["plan-rewrite", "plan-draft", "coverage-check", "teaching-plan", "slice-identity", "waiting-concept"]
 domain: "roadmap-planning/ordering"
-last_updated_by: "#691"
+last_updated_by: "#88"
 status: active
 verification: verified
 ---
@@ -28,7 +28,7 @@ A scaffold is emitted during ordering, at the moment its needing slice is chosen
 2. A scaffold is a learner slice, and it assumes nothing.
 3. A concept has at most one scaffold.
 4. No scaffold is inserted for a concept some permitted order could introduce in time, read one concept at a time.
-5. A concept no slice of the roadmap introduces is scaffolded rather than faulted.
+5. A concept no slice of the roadmap introduces is scaffolded rather than faulted, unless an unplanned epic will introduce it.
 6. A concept introduced only by a handed-off story is never scaffolded.
 7. A scaffold enters the order at the moment the slice whose need forced it is chosen, immediately ahead of that slice.
 
@@ -39,6 +39,7 @@ A scaffold is emitted during ordering, at the moment its needing slice is chosen
 - [coverage-check](coverage-check.md) — reports the handed-off case a scaffold must never cover.
 - [teaching-plan](teaching-plan.md) — the committed contract, which now admits a scaffold as a slice with no story, no epic, no branch and no pinning test.
 - [slice-identity](slice-identity.md) — why a scaffold's concept is its identity, and why a session cannot key it by a story it does not have.
+- [waiting-concept](waiting-concept.md) — the background case a waiting concept replaces; this page's other rules keep their precedence.
 
 ## Decision Log
 
@@ -53,3 +54,7 @@ A scaffold lived only in the draft, because admitting one into the committed pla
 ### 2026-09-19 — #691 — Moved here from the Nexus repository
 
 The teaching stage now ships as a package of its own, and this page came with it, decision log and all. Nothing it asserts changed; the store it is asserted in did. The Nexus repository keeps a retired forwarding entry under this slug, so a reader who greps the old name is told where the page went rather than finding nothing.
+
+### 2026-09-21 — #88 — Background an unplanned epic will introduce is not scaffolded
+
+A scaffold for a concept an unplanned epic will introduce taught theory for work the learner was about to build, away from the work itself. The rewrite now holds back a scaffold only in the background case, where no planned story introduces the concept and an unplanned epic will. Every other rule keeps its precedence: a concept a planned learner story introduces too late is still scaffolded, and one a handed-off story introduces is still never scaffolded. Refuted alternative: defer whenever any unplanned epic introduces the concept, including when a planned introducer comes too late. That would avoid one more scaffold, but the coverage check would then fault the plan for the late introducer and refuse it. Invariant 5 previously read: "A concept no slice of the roadmap introduces is scaffolded rather than faulted." This entry also records the reciprocal link from waiting-concept.

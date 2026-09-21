@@ -3,7 +3,7 @@ title: "Roadmap Members"
 aliases: ["roadmap member", "planned member", "unplanned member", "epic nobody has planned yet", "member kind", "member order", "where planned work runs out"]
 touches: ["roadmap-resolution", "story-concept-extraction", "plan-draft", "planning-boundary"]
 domain: "roadmap-planning"
-last_updated_by: "#66"
+last_updated_by: "#88"
 status: active
 verification: verified
 ---
@@ -33,7 +33,7 @@ Members are ordered by ascending issue number, with one exception: a member that
 ## Integration Points
 
 - [roadmap-resolution](roadmap-resolution.md) — names the issues this list is built from, reads each one, and decides which kind of member it becomes.
-- [story-concept-extraction](story-concept-extraction.md) — reads the stories planned members contribute; a member nobody has planned yet gives it nothing to read.
+- [story-concept-extraction](story-concept-extraction.md) — reads the stories planned members contribute, and reads each unplanned member's title and body once for what it will introduce.
 - [plan-draft](plan-draft.md) — is written beside this list and turns the stories on it into slices.
 - [planning-boundary](planning-boundary.md) — reads the kind stated here to decide where planning stops, and records the members that contributed no slice.
 
@@ -46,3 +46,7 @@ A roadmap a learner is taught from is still growing, so the unplanned tail of an
 ### 2026-09-20 — #66 — Reciprocal link from planning-boundary
 
 The kind stated on every member is now read by the phases that run after resolution, not by resolution alone. Where planned work runs out is recorded in the committed plan and shown at the approval gate. Nothing about what a member is, what it carries, or how the order is built changed.
+
+### 2026-09-21 — #88 — An unplanned member's body gains a reader
+
+The title and body an unplanned member carries are now read, once, by an extraction unit, for the concepts that epic will introduce. That lets the plan leave those concepts to the epic instead of scaffolding them. An unplanned member still contributes no story, no stub and no slice, and nothing about what a member carries or how the order is built changed.
