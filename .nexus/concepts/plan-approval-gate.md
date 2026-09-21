@@ -1,9 +1,9 @@
 ---
 title: "Plan Approval Gate"
 aliases: ["approval gate", "gate digest", "mark override", "draft fingerprint", "one gate for the whole roadmap", "declining writes nothing"]
-touches: ["plan-draft", "coverage-check", "teaching-plan", "plan-field-ownership", "plan-re-approval", "focus-marking", "planning-boundary"]
+touches: ["plan-draft", "coverage-check", "teaching-plan", "plan-field-ownership", "plan-re-approval", "focus-marking", "planning-boundary", "waiting-concept"]
 domain: "roadmap-planning/approval"
-last_updated_by: "#66"
+last_updated_by: "#88"
 status: active
 verification: verified
 ---
@@ -21,7 +21,7 @@ Approval writes the plan and its pages together or not at all. Printing the dige
 ## Key Invariants
 
 1. One gate approves the whole roadmap, and no epic of an initiative is approved on its own.
-2. A draft with no coverage verdict, one whose verdict names a gap, or one a fresh check contradicts, is refused with every gap named, and nothing committed is written.
+2. A draft with no coverage verdict, one whose verdict names a gap, or one a fresh check contradicts, including its waiting concepts, is refused, and nothing committed is written.
 3. The digest is printed by code, and the reviewer is shown it word for word.
 4. The digest carries no pinned state, no story body, no lesson prose and no source; a story title appears only as quoted data.
 5. The learner's quoted phrases are printed at the gate and written to no committed file.
@@ -37,6 +37,7 @@ Approval writes the plan and its pages together or not at all. Printing the dige
 - [plan-re-approval](plan-re-approval.md) — the second and later passes through this same gate, after a story has drifted.
 - [focus-marking](focus-marking.md) — the mark a reviewer overrides here, recorded per story and surviving later re-plans.
 - [planning-boundary](planning-boundary.md) — the block this gate prints last, and the refusal that keeps the recorded boundary the true complement of the slices.
+- [waiting-concept](waiting-concept.md) — printed under its epic in the closing block; a recorded waiting list a fresh check contradicts is refused.
 
 ## Decision Log
 
@@ -51,3 +52,7 @@ The teaching stage now ships as a package of its own, and this page came with it
 ### 2026-09-20 — #66 — The print ends with what the plan does not cover, and approval refuses a draft the roadmap has outgrown
 
 A reviewer of a partial plan was reading it as a whole one, so the print now ends with the roadmap's unplanned members, in the roadmap's own order, and says how many of the roadmap's members the plan covers. It is placed last so the reviewer reads what the plan does not cover immediately before deciding. The block breaks this print's own house style, under which every section always appears and shows that it is empty, because a fully planned roadmap's print had to stay exactly as it was. Approval gained one refusal. A draft with no slice for a story the roadmap now holds is refused, because the roadmap was re-resolved after the draft was written, and the plan would otherwise state that it did not plan a member it also did not list. The presence of a boundary is never on its own a reason to refuse. This entry also records the reciprocal link from planning-boundary.
+
+### 2026-09-21 — #88 — The gate shows each concept the plan left to an unplanned epic
+
+A concept the plan leaves to an unplanned epic is neither scaffolded nor a gap, so without the print a reviewer would not see it at all. The gate prints it inside the existing boundary block, under the epic it waits on, beside the slice that is taught without it, so the reviewer can choose to plan that epic first. Nothing is added when no concept waits. The gate and approval recompute the waiting list and refuse a recorded list the fresh check contradicts, because a list edited or left stale after an epic body changed would otherwise be approved unseen. Invariant 2 previously read: "A draft with no coverage verdict, one whose verdict names a gap, or one a fresh check contradicts, is refused with every gap named, and nothing committed is written." A refusal over the waiting list names what the fresh check finds rather than gaps, so "with every gap named" no longer holds for every refusal. This entry also records the reciprocal link from waiting-concept.

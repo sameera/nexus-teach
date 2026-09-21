@@ -1,9 +1,9 @@
 ---
 title: "Coverage Check"
 aliases: ["coverage verdict", "coverage gap", "clean verdict", "focus boundary gap", "gap names the handed-off story", "plan with gaps"]
-touches: ["plan-rewrite", "plan-draft", "scaffold-slice", "prior-knowledge-declaration", "focus-marking", "story-concept-extraction", "plan-approval-gate"]
+touches: ["plan-rewrite", "plan-draft", "scaffold-slice", "prior-knowledge-declaration", "focus-marking", "story-concept-extraction", "plan-approval-gate", "waiting-concept"]
 domain: "roadmap-planning/ordering"
-last_updated_by: "#691"
+last_updated_by: "#88"
 status: active
 verification: verified
 ---
@@ -39,6 +39,7 @@ Scaffolds already remove most late-introduction gaps. The check still looks for 
 - [focus-marking](focus-marking.md) — the boundary a gap naming a handed-off story says is drawn in the wrong place.
 - [story-concept-extraction](story-concept-extraction.md) — the handed-off story's checked list, the only record of what that story would introduce.
 - [plan-approval-gate](plan-approval-gate.md) — runs this check again over the draft's slices before printing and again before writing, and names every gap in its refusal.
+- [waiting-concept](waiting-concept.md) — the third kind of unreached assumption, recorded with the verdict and recomputed like a gap.
 
 ## Decision Log
 
@@ -53,3 +54,7 @@ A recorded verdict was the only thing standing between a plan with a gap and a r
 ### 2026-09-19 — #691 — Moved here from the Nexus repository
 
 The teaching stage now ships as a package of its own, and this page came with it, decision log and all. Nothing it asserts changed; the store it is asserted in did. The Nexus repository keeps a retired forwarding entry under this slug, so a reader who greps the old name is told where the page went rather than finding nothing.
+
+### 2026-09-21 — #88 — A third reading that is not a gap: waiting on an unplanned epic
+
+An assumption nothing in the plan reaches is now sorted three ways: a gap, a concept waiting on an unplanned epic, or background. A waiting concept never makes the verdict unclean. It is recorded with the verdict, beside its epic and the slice that assumes it, and only when the list holds one, so a fully planned roadmap's draft is unchanged byte for byte. The gate and approval recompute the list and refuse a recorded one a fresh check contradicts, on the same terms as a gap, because the draft is a file an agent can write. Invariant 3 stands as written, because a waiting concept is not a gap; the waiting case is described on its own page, since this page sits at the word cap. This entry also records the reciprocal link from waiting-concept.

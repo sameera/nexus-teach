@@ -1,9 +1,9 @@
 ---
 title: "Planning Boundary"
 aliases: ["planning boundary", "where planning stops", "unplanned list", "partial plan", "epics the plan did not cover", "how much of the roadmap the plan covers", "nothing planned yet"]
-touches: ["roadmap-members", "story-concept-extraction", "plan-draft", "plan-approval-gate", "teaching-plan", "plan-re-approval", "planning-brief"]
+touches: ["roadmap-members", "story-concept-extraction", "plan-draft", "plan-approval-gate", "teaching-plan", "plan-re-approval", "planning-brief", "waiting-concept"]
 domain: "roadmap-planning"
-last_updated_by: "#67"
+last_updated_by: "#88"
 status: active
 verification: verified
 ---
@@ -39,6 +39,7 @@ A roadmap with no planned member stops the chain at extraction. The workbook and
 - [teaching-plan](teaching-plan.md) — the committed plan this list is written into, after its slices.
 - [plan-re-approval](plan-re-approval.md) — derives the list again from the roadmap it is approving, so a member planned since the last approval leaves the boundary.
 - [planning-brief](planning-brief.md) — reads this list's first entry to name the epic a learner plans next, and is the only reader of it.
+- [waiting-concept](waiting-concept.md) — printed inside this boundary's block at the gate, under the epic it waits on; never written into the list.
 
 ## Decision Log
 
@@ -49,3 +50,7 @@ A roadmap a learner is taught from is still growing, so part of it is routinely 
 ### 2026-09-20 — #67 — The recorded list gained its reader
 
 The list was written down so that a reader could tell a plan that covered its whole roadmap from one that stopped partway, and until now nothing read it back. A session that runs out of taught slices now takes its first entry, in the roadmap's own order, as the epic the learner plans next. Nothing about what the list holds changed to allow that: an entry still carries a number and a title and nothing else, and those two are exactly what naming the epic needs. Invariant 4 also stands as written. An entry still never enters the teaching order, the reading order, the drift comparison or a handoff prompt; the session reads the list at the point it has stopped teaching, which is not any of those. The body here is unchanged because it sits at the word cap. This entry also records the reciprocal link to planning-brief.
+
+### 2026-09-21 — #88 — Reciprocal link from waiting-concept
+
+The block the gate prints for this boundary now also names, under each unplanned epic, any concept the plan left to it. Nothing about what the recorded list holds changed: a concept waiting on an epic is never written into the committed plan, so an entry still carries a number and a title and nothing else.

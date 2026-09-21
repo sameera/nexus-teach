@@ -1,9 +1,9 @@
 ---
 title: "Concept Vocabulary Merge"
 aliases: ["one identifier per concept", "synonym merge", "proposed identifier", "concept gloss", "merged vocabulary", "folded-away name"]
-touches: ["story-concept-extraction", "plan-draft", "prior-knowledge-declaration"]
+touches: ["story-concept-extraction", "plan-draft", "prior-knowledge-declaration", "waiting-concept"]
 domain: "roadmap-planning/extraction"
-last_updated_by: "#691"
+last_updated_by: "#88"
 status: active
 verification: verified
 ---
@@ -23,7 +23,7 @@ The mapping lands on the stubs, not on the checked lists. Each list keeps the na
 ## Key Invariants
 
 1. After the merge, a concept carries one identifier in every list that names it.
-2. The merge only combines proposed identifiers; it never invents or splits a concept.
+2. The merge only combines proposed identifiers; it never invents or splits a concept, and never keeps an unplanned epic's name over a story's.
 3. Every proposed identifier belongs to exactly one group, singletons included.
 4. An identifier is a plain lower-case hyphenated token, and one a reader would take for true, false or null is refused.
 5. A checked list keeps the names its own unit proposed; the kept vocabulary leads from a folded-away name to the identifier now used.
@@ -35,6 +35,7 @@ The mapping lands on the stubs, not on the checked lists. Each list keeps the na
 - [story-concept-extraction](story-concept-extraction.md) — the independent reads whose proposed names this step reconciles into one vocabulary.
 - [plan-draft](plan-draft.md) — where the mapping lands, and which keeps the merged vocabulary beside its slices.
 - [prior-knowledge-declaration](prior-knowledge-declaration.md) — matches the learner's words against these glosses, and reads a folded name as the identifier kept.
+- [waiting-concept](waiting-concept.md) — a waiting concept carries a planned identifier, because an epic's name never wins a group.
 
 ## Decision Log
 
@@ -49,3 +50,7 @@ The merged vocabulary now has a second reader. The declaration match is made aga
 ### 2026-09-19 — #691 — Moved here from the Nexus repository
 
 The teaching stage now ships as a package of its own, and this page came with it, decision log and all. Nothing it asserts changed; the store it is asserted in did. The Nexus repository keeps a retired forwarding entry under this slug, so a reader who greps the old name is told where the page went rather than finding nothing.
+
+### 2026-09-21 — #88 — An unplanned epic's names join only as aliases of planned names
+
+Re-approval refuses a draft that renames an identifier a written lesson carries. If an epic's name could win a group, a workbook with written lessons could be refused only because an unplanned epic was added to the roadmap. So code keeps a planned name in any group that holds one, and drops a group of epic names alone, which could only give the declaration match something the plan never teaches. For a group of story names only, this is the same rule as before. Refuted alternative: treat epic names as equal members of the merge. That is one rule instead of two and leaves the session's judgement untouched, but it lost on the rename refusal. Invariant 2 previously read: "The merge only combines proposed identifiers; it never invents or splits a concept." This entry also records the reciprocal link from waiting-concept.

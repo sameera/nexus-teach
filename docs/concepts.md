@@ -4,7 +4,7 @@
 
 # Concept Atlas
 
-Orientation map of the concept store — 41 active concepts. Each links to its full page
+Orientation map of the concept store — 42 active concepts. Each links to its full page
 (behavior, invariants, decision history); code locations live in the matching
 `.nexus/anchors/<slug>.md` sidecar.
 
@@ -59,6 +59,7 @@ Orientation map of the concept store — 41 active concepts. Each links to its f
 - [Plan Rewrite](../.nexus/concepts/plan-rewrite.md) — After the planning pass writes one stub per story, a second pass rewrites that draft into a teachable sequence.
 - [Scaffold Slice](../.nexus/concepts/scaffold-slice.md) — A scaffold is a teaching step the rewrite inserts before a slice that assumes a concept no permitted order of the real work could introduce in time.
 - [Slice Identity](../.nexus/concepts/slice-identity.md) — A slice is named by its story and which part of that story it is, or — when it builds nothing on the roadmap — by the one concept it teaches.
+- [Waiting Concept](../.nexus/concepts/waiting-concept.md) — A waiting concept is one a learner slice assumes, that no planned story introduces, and that an epic nobody has planned yet will introduce.
 
 ### Approval
 

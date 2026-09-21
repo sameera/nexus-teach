@@ -1,9 +1,9 @@
 ---
 title: "Story Concept Extraction"
 aliases: ["per-story extraction", "extraction unit", "checked concept list", "concepts a story introduces", "concepts a story assumes", "no readable list"]
-touches: ["concept-vocabulary-merge", "plan-draft", "focus-marking", "coverage-check", "roadmap-members", "planning-boundary"]
+touches: ["concept-vocabulary-merge", "plan-draft", "focus-marking", "coverage-check", "roadmap-members", "planning-boundary", "waiting-concept"]
 domain: "roadmap-planning/extraction"
-last_updated_by: "#66"
+last_updated_by: "#88"
 status: active
 verification: verified
 ---
@@ -20,9 +20,11 @@ An empty list is accepted only when the unit says outright that the story introd
 
 A story with no readable list stops the pass rather than being left out of it, because a plan missing one story looks complete.
 
+An unplanned epic is read the same way, once, for what it will introduce, and stops the pass when it has no readable list.
+
 ## Key Invariants
 
-1. Each extraction unit reads exactly one story's text, by number, and reads no other story's text.
+1. Each extraction unit reads exactly one story's text, or one unplanned epic's title and body, by number, and reads nothing else.
 2. The planning session holds no story's text, decision record or diff.
 3. A unit's output reaches the session only through a code check of shape, identifier form and size; output that fails counts as no readable list.
 4. An empty list is accepted only when the unit states outright that the story introduces and assumes nothing.
@@ -36,8 +38,9 @@ A story with no readable list stops the pass rather than being left out of it, b
 - [plan-draft](plan-draft.md) — the one write these lists feed, which needs a readable list for every story before it writes anything.
 - [focus-marking](focus-marking.md) — the verdict a unit returns from this same single read, which decides its slice's mark.
 - [coverage-check](coverage-check.md) — reads a handed-off story's checked list to name that story behind a coverage gap.
-- [roadmap-members](roadmap-members.md) — the list this reads its stories from; a member nobody has planned yet contributes none, so nothing is extracted for it.
+- [roadmap-members](roadmap-members.md) — the list this reads its stories from, and the unplanned members it reads once for what they will introduce.
 - [planning-boundary](planning-boundary.md) — stops this pass before any story is read when no member of the roadmap is planned.
+- [waiting-concept](waiting-concept.md) — the unplanned epics this reads supply the concepts a waiting concept waits on.
 
 ## Decision Log
 
@@ -60,3 +63,7 @@ A roadmap now holds epics nobody has planned yet, and such a member has no stori
 ### 2026-09-20 — #66 — A roadmap with nothing planned on it stops here
 
 This pass is the first that reads stories, so it is where a roadmap whose members are all unplanned is refused, before any story is read and before any extraction unit starts. It is one more condition on a gate that already existed for a roadmap with no interview, rather than a new control point. Refuted alternative: refuse at resolution instead, which would also spare the lead an interview about a roadmap that plans nothing, and would leave nothing on disk. It lost because resolution is defined to resolve an all-unplanned roadmap and to leave the judgement to the phase that reads it, which is what lets naming, the initiative path and the query path share one resolver with no planning policy inside it. This entry also records the reciprocal link from planning-boundary.
+
+### 2026-09-21 — #88 — An unplanned epic is read once, for what it will introduce
+
+The plan needs to know which concepts an unplanned epic will introduce, so it can leave them to that epic instead of scaffolding them. The extraction unit is the one tool that already judges which concepts a piece of work introduces, so it reads the epic's title and body, which are the only material the epic has. The session still sends a number out and gets a checked list back. No focus is given and no verdict is asked, and what the epic assumes is dropped, because it cannot change the current plan. The list is kept against the epic's text, so an edited body is read again. An epic with no readable list stops the pass, because reading it as introducing nothing would bring the scaffold back without the reviewer seeing it. A thin body can say outright that it introduces nothing. Refuted alternative: match the assumed identifiers and their glosses against the epic's text in code, which is deterministic and needs no model. It lost on recall, because identifiers are coined hyphenated names that epic prose rarely contains. Invariant 1 previously read: "Each extraction unit reads exactly one story's text, by number, and reads no other story's text." This entry also records the reciprocal link from waiting-concept.
