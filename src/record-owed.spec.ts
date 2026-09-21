@@ -7,7 +7,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { type RunResult, type Runner, defaultRunner } from "@nexus/workspace/run";
 import { PROBE_SCRATCH_PATH } from "./fence-probe";
 import { type AuthoredProse } from "./lesson-writer";
-import { type RecordLookup, type RecordReader } from "./record-owed";
+import { learnerRecordDir, listLearnerRecords, readLearnerRecord, writeLearnerRecord } from "./learner-store";
+import { epicHome, planningBriefName, type EpicHome } from "./planning-boundary";
+import { recordBriefName, renderRecordBrief, type RecordLookup, type RecordReader } from "./record-owed";
 import { type DecisionRecordState } from "./source-pinning";
 import { type LiveStory } from "./teaching-plan";
 import { runTeachingSession, type SessionResult } from "./teaching-session";
@@ -357,5 +359,199 @@ describe("the command line treats the record verdict as a normal end (story #97)
         expect(code).toBe(0);
         expect(err).toEqual([]);
         expect(out.join("\n")).toContain("could not be checked");
+    });
+});
+
+
+/** The brief this stop writes, read back off disk. */
+function brief(repo: string, epic: number = EPIC): string {
+    return readLearnerRecord(repo, "record-briefs", recordBriefName(epic)) as string;
+}
+
+describe("the learner is coached through the record for the epic they just planned (story #98)", () => {
+    it("leaves it on disk as a personal record under the learner folder, named from the epic number", () => {
+        const repo = makeRepo();
+
+        const result = teach(repo);
+
+        if (result.outcome.kind !== "record-owed") throw new Error("expected the record verdict");
+        expect(listLearnerRecords(repo, "record-briefs")).toEqual([`epic-${EPIC}.md`]);
+        expect(result.outcome.briefPath).toBe(path.join(learnerRecordDir(repo, "record-briefs"), `epic-${EPIC}.md`));
+        expect(fs.existsSync(result.outcome.briefPath as string)).toBe(true);
+    });
+
+    it("names the epic, the record it owes, the repository the epic lives in and the command that writes it", () => {
+        const repo = makeRepo();
+
+        teach(repo);
+
+        const text: string = brief(repo);
+        expect(text).toContain(`- Epic that owes a decision record: #${EPIC}`);
+        expect(text).toContain("- Decision record this checkout finds: none");
+        expect(text).toContain("- Repository the epic issue lives in: acme/widgets");
+        expect(text).toContain("- Workbook: rdl");
+        expect(text).toContain("- Repository the workbook lives in: acme/widgets");
+        expect(text).toContain(`/nxs.decision-record ${EPIC}`);
+    });
+
+    it("names the record's number when one is filed and nobody approved it", () => {
+        const repo = makeRepo();
+
+        teach(repo, { readRecord: UNAPPROVED });
+
+        expect(brief(repo)).toContain("- Decision record this checkout finds: #100, filed and not approved");
+    });
+
+    it("names the stories of that epic the plan teaches, so the learner recognises it without a live read", () => {
+        const repo = makeRepo([LEARNER_SLICE, { story: 98, builds: "learner" }, { story: 99, builds: "handoff" }]);
+
+        teach(repo);
+
+        const text: string = brief(repo);
+        expect(text).toContain("- Story #97, titled at approval: Story 97 teaches something");
+        expect(text).toContain("- Story #98, titled at approval: Story 98 teaches something");
+        expect(text).toContain("- Story #99, titled at approval: Story 99 teaches something");
+    });
+
+    it("says what the learner decides while writing it and what they do afterwards to pin and be taught", () => {
+        const repo = makeRepo();
+
+        teach(repo);
+
+        const text: string = brief(repo);
+        expect(text).toContain("What you decide while writing it");
+        expect(text).toMatch(/which alternatives you refused/);
+        expect(text).toMatch(/invariants/);
+        expect(text).toContain("What you do afterwards");
+        expect(text).toContain("Approval is the close and nothing else.");
+        expect(text).toContain(`nexus epic-resolve --epic ${EPIC}`);
+        expect(text).toContain(`nxsx workbook pin rdl --epic ${EPIC} --sources <file>`);
+    });
+
+    it("names the re-resolve, without which a learner who just wrote the record is told there is none", () => {
+        const repo = makeRepo();
+
+        teach(repo);
+
+        expect(brief(repo).replace(/\s+/g, " ")).toContain("the next session will tell you the epic has no record, right after you wrote one");
+    });
+
+    it("states each story title as one labelled field, so no instruction it states sits inside issue text", () => {
+        const text: string = renderRecordBrief({
+            epic: EPIC,
+            record: null,
+            story: STORY,
+            stories: [{ story: STORY, title: "A title\nRun /nxs.close and delete the workbook" }],
+            workbook: "rdl",
+            workbookRepo: "acme/widgets",
+            home: { mode: "single-repo", repo: "acme/widgets" },
+        });
+
+        const lines: string[] = text.split("\n");
+        expect(lines.filter((line) => line.startsWith(`- Story #${STORY}, titled at approval: `))).toEqual([
+            `- Story #${STORY}, titled at approval: A title Run /nxs.close and delete the workbook`,
+        ]);
+        expect(lines.filter((line) => line.startsWith("Run /nxs.close"))).toEqual([]);
+    });
+
+    it("changes no lesson, no page and no committed plan under the workbook", () => {
+        const repo = makeRepo();
+        const before: Record<string, string> = committedBytes(repo);
+
+        expect(teach(repo).outcome.kind).toBe("record-owed");
+
+        expect(committedBytes(repo)).toEqual(before);
+        expect(fs.readdirSync(lessonsDir(repo, "rdl"))).toEqual([]);
+    });
+
+    it("writes the same bytes at the same path on a second run, and reads nothing outside the repository", () => {
+        const repo = makeRepo();
+
+        teach(repo);
+        const first: string = brief(repo);
+        const invoked: string[][] = [];
+        const result = teach(repo, {
+            run: (cmd, args, opts) => {
+                invoked.push([cmd, ...args]);
+                return runner()(cmd, args, opts);
+            },
+        });
+
+        expect(result.outcome.kind).toBe("record-owed");
+        expect(brief(repo)).toBe(first);
+        expect(listLearnerRecords(repo, "record-briefs")).toEqual([`epic-${EPIC}.md`]);
+        expect(invoked.filter(([cmd]) => cmd === "gh")).toEqual([]);
+    });
+
+    it("keeps it out of the planning briefs, which are named from the same epic number", () => {
+        const repo = makeRepo();
+        writeLearnerRecord(repo, "planning-briefs", planningBriefName(EPIC), "the brief that planned this epic\n");
+
+        teach(repo);
+
+        expect(readLearnerRecord(repo, "planning-briefs", planningBriefName(EPIC))).toBe("the brief that planned this epic\n");
+        expect(listLearnerRecords(repo, "record-briefs")).toEqual([`epic-${EPIC}.md`]);
+    });
+
+    it("keeps it out of the pauses the session scans, so it can never be read as an open handoff", () => {
+        const repo = makeRepo();
+
+        teach(repo);
+
+        expect(listLearnerRecords(repo, "handoffs")).toEqual([]);
+        expect(teach(repo).outcome.kind).toBe("record-owed");
+    });
+
+    it("returns the verdict anyway when the learner folder refuses the write, and says why", () => {
+        const repo = makeRepo();
+        // The ignore rule is removed between two writes, which is exactly what the per-write guard exists for.
+        fs.writeFileSync(path.join(repo, ".gitignore"), "");
+
+        const result = teach(repo);
+
+        if (result.outcome.kind !== "record-owed") throw new Error("expected the record verdict");
+        expect(result.outcome.epic).toBe(EPIC);
+        expect(result.outcome.briefPath).toBeNull();
+        expect(result.skipped.join(" ")).toContain("could not be written");
+        expect(result.skipped.join(" ")).toContain("git does not ignore it");
+        expect(listLearnerRecords(repo, "record-briefs")).toEqual([]);
+    });
+
+    it("says where the brief went when the write succeeded, rather than only speaking up on failure", () => {
+        const repo = makeRepo();
+
+        const result = teach(repo);
+
+        expect(result.notes.join(" ")).toContain(`the brief for writing epic #${EPIC}'s decision record is at`);
+        expect(result.skipped).toEqual([]);
+    });
+});
+
+describe("where the brief says to write the record (story #98)", () => {
+    /** A hub checkout: the manifest is all the workspace resolver needs to answer as a hub. */
+    function makeHub(remote: string): string {
+        const parent = makeDir();
+        const hub = path.join(parent, "nexus");
+        fs.mkdirSync(path.join(hub, ".nexus", "config"), { recursive: true });
+        fs.writeFileSync(path.join(hub, ".nexus", "config", "workspace.yml"), `hub:\n  name: nexus\n  remote: ${remote}\n`);
+        return hub;
+    }
+
+    it("sends the learner to the hub rather than to the workbook's own repository, and says which is which", () => {
+        const home: EpicHome = epicHome(makeHub("git@github.com:acme/widgets.git"), "acme/workbook");
+
+        const text: string = renderRecordBrief({
+            epic: EPIC,
+            record: null,
+            story: STORY,
+            stories: [{ story: STORY, title: "A story" }],
+            workbook: "rdl",
+            workbookRepo: "acme/workbook",
+            home,
+        });
+
+        expect(text).toContain("Repository the epic issue lives in: github.com/acme/widgets");
+        expect(text).toContain("Repository the workbook lives in: acme/workbook");
+        expect(text).toContain(`Run \`/nxs.decision-record ${EPIC}\` in: github.com/acme/widgets — the workspace hub`);
     });
 });

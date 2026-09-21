@@ -59,7 +59,15 @@ import {
     type PlanningBoundary,
     type PlanningBriefContext,
 } from "./planning-boundary.js";
-import { recordOwed, renderRecordOwedReport, type RecordReader, type RecordVerdict } from "./record-owed.js";
+import {
+    briefedStories,
+    recordOwed,
+    renderRecordOwedReport,
+    writeRecordBrief,
+    type RecordBriefContext,
+    type RecordReader,
+    type RecordVerdict,
+} from "./record-owed.js";
 import { gateNextLesson, type DriftFinding, type IssueReader, type LessonGate, type TeachingPlan } from "./teaching-plan.js";
 import { sliceId, sliceLabel, toTeachingPlan, type PlanSliceRecord, type WorkbookPlan } from "./workbook-plan.js";
 import {
@@ -119,7 +127,7 @@ export type SessionOutcome =
     | { kind: "written"; story?: number; lesson: string; page: string; report: string }
     | { kind: "open"; story?: number; lesson: string; page: string; report: string }
     | { kind: "plan-next"; epic: number; title: string; remaining: number; briefPath: string | null; report: string }
-    | { kind: "record-owed"; slice: string; story: number; epic: number; record: number | null; report: string }
+    | { kind: "record-owed"; slice: string; story: number; epic: number; record: number | null; briefPath: string | null; report: string }
     | { kind: "done"; report: string };
 
 export interface SessionResult {
@@ -402,6 +410,47 @@ function planningBriefFor(
         skipped.push(
             `the brief for planning #${boundary.next.epic} could not be written, so the epic to plan ` +
             `is named here and nowhere else: ${e instanceof Error ? e.message : String(e)}`,
+        );
+        return null;
+    }
+}
+
+/**
+ * Write the brief for the record the stopped slice's epic owes, and say where it went.
+ *
+ * A brief that cannot be written is reported beside the verdict rather than replacing it: the
+ * verdict does not depend on the brief existing, and this path has recorded nothing, so there is no
+ * half-state to protect (record #100). The handoff path fails on the same refusal only because it
+ * has already recorded a pause.
+ */
+function recordBriefFor(
+    repoRoot: string,
+    slug: string,
+    plan: WorkbookPlan,
+    epic: number,
+    record: number | null,
+    story: number,
+    run: Runner,
+    skipped: string[],
+    notes: string[],
+): string | null {
+    const context: RecordBriefContext = {
+        epic,
+        record,
+        story,
+        stories: briefedStories(plan, epic),
+        workbook: slug,
+        workbookRepo: plan.repo,
+        home: epicHome(repoRoot, plan.repo),
+    };
+    try {
+        const briefPath: string = writeRecordBrief(repoRoot, context, run);
+        notes.push(`the brief for writing epic #${epic}'s decision record is at ${briefPath}.`);
+        return briefPath;
+    } catch (e) {
+        skipped.push(
+            `the brief for writing epic #${epic}'s decision record could not be written, so what is ` +
+            `owed is named here and nowhere else: ${e instanceof Error ? e.message : String(e)}`,
         );
         return null;
     }
@@ -751,6 +800,7 @@ export function runTeachingSession(inputs: SessionInputs): SessionResult {
                 story: record.story,
                 epic: record.epic,
                 record: record.record,
+                briefPath: recordBriefFor(repoRoot, slug, plan, record.epic, record.record, slice.story as number, run, skipped, notes),
                 report: renderRecordOwedReport(slice, record.epic, record.record),
             },
             drift: gate.findings,
