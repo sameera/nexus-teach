@@ -1,9 +1,9 @@
 ---
 title: "Story Concept Extraction"
 aliases: ["per-story extraction", "extraction unit", "checked concept list", "concepts a story introduces", "concepts a story assumes", "no readable list"]
-touches: ["concept-vocabulary-merge", "plan-draft", "focus-marking", "coverage-check", "roadmap-members"]
+touches: ["concept-vocabulary-merge", "plan-draft", "focus-marking", "coverage-check", "roadmap-members", "planning-boundary"]
 domain: "roadmap-planning/extraction"
-last_updated_by: "#64"
+last_updated_by: "#66"
 status: active
 verification: verified
 ---
@@ -37,6 +37,7 @@ A story with no readable list stops the pass rather than being left out of it, b
 - [focus-marking](focus-marking.md) — the verdict a unit returns from this same single read, which decides its slice's mark.
 - [coverage-check](coverage-check.md) — reads a handed-off story's checked list to name that story behind a coverage gap.
 - [roadmap-members](roadmap-members.md) — the list this reads its stories from; a member nobody has planned yet contributes none, so nothing is extracted for it.
+- [planning-boundary](planning-boundary.md) — stops this pass before any story is read when no member of the roadmap is planned.
 
 ## Decision Log
 
@@ -55,3 +56,7 @@ The teaching stage now ships as a package of its own, and this page came with it
 ### 2026-09-20 — #64 — Reciprocal link from roadmap-members
 
 A roadmap now holds epics nobody has planned yet, and such a member has no stories. This pass reads the stories planned members contribute and is handed nothing by an unplanned one. Nothing about how a story is read, checked or kept changed.
+
+### 2026-09-20 — #66 — A roadmap with nothing planned on it stops here
+
+This pass is the first that reads stories, so it is where a roadmap whose members are all unplanned is refused, before any story is read and before any extraction unit starts. It is one more condition on a gate that already existed for a roadmap with no interview, rather than a new control point. Refuted alternative: refuse at resolution instead, which would also spare the lead an interview about a roadmap that plans nothing, and would leave nothing on disk. It lost because resolution is defined to resolve an all-unplanned roadmap and to leave the judgement to the phase that reads it, which is what lets naming, the initiative path and the query path share one resolver with no planning policy inside it. This entry also records the reciprocal link from planning-boundary.

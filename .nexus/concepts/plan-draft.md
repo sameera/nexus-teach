@@ -1,9 +1,9 @@
 ---
 title: "Plan Draft"
 aliases: ["plan stub", "uncommitted draft", "draft of slices", "stub contract", "assumed concepts", "several slices per story", "draft verdict"]
-touches: ["teaching-plan", "story-concept-extraction", "concept-vocabulary-merge", "focus-marking", "plan-rewrite", "prior-knowledge-declaration", "scaffold-slice", "coverage-check", "plan-approval-gate", "roadmap-members"]
+touches: ["teaching-plan", "story-concept-extraction", "concept-vocabulary-merge", "focus-marking", "plan-rewrite", "prior-knowledge-declaration", "scaffold-slice", "coverage-check", "plan-approval-gate", "roadmap-members", "planning-boundary"]
 domain: "roadmap-planning/ordering"
-last_updated_by: "#64"
+last_updated_by: "#66"
 status: active
 verification: verified
 ---
@@ -40,6 +40,7 @@ The stub uses the shipped plan's own names for the story, the mark and the intro
 - [coverage-check](coverage-check.md) — the verdict this draft carries beside its slices.
 - [plan-approval-gate](plan-approval-gate.md) — the checkpoint that prints this draft, refuses it when its coverage is not clean, and turns it into the committed plan.
 - [roadmap-members](roadmap-members.md) — the resolved list the draft is written beside; its slices come from the stories planned members contribute.
+- [planning-boundary](planning-boundary.md) — is kept off this draft on purpose, so the fingerprint the gate records over it is unchanged on a mixed roadmap.
 
 ## Decision Log
 
@@ -62,3 +63,7 @@ The teaching stage now ships as a package of its own, and this page came with it
 ### 2026-09-20 — #64 — Reciprocal link from roadmap-members
 
 The list the draft is written beside now holds two kinds of member, and only the planned kind contributes stories. A draft over a roadmap with an unplanned tail therefore covers the planned half of it. What a stub may carry and where the draft is written are unchanged.
+
+### 2026-09-20 — #66 — The boundary is kept off this draft, and no draft is written for a roadmap with nothing planned
+
+Where planning stops is recorded in the committed plan and deliberately not here. The draft is replaced whole by every pass and rebuilt from the checked lists when a reviewer changes a mark, and the gate records a fingerprint of the draft it printed. A second kind of entry on the draft would change that fingerprint on every roadmap with an unplanned tail, which weakens the one value that proves the reviewer approved what they read. The write also refuses a roadmap with no planned member, repeating the refusal extraction already makes. That is the same condition computed the same way rather than a second control point, and without it a path that skipped extraction could write an empty draft that looks like a planned roadmap whose extractions all failed. This entry also records the reciprocal link from planning-boundary.

@@ -1,9 +1,9 @@
 ---
 title: "Plan Approval Gate"
 aliases: ["approval gate", "gate digest", "mark override", "draft fingerprint", "one gate for the whole roadmap", "declining writes nothing"]
-touches: ["plan-draft", "coverage-check", "teaching-plan", "plan-field-ownership", "plan-re-approval", "focus-marking"]
+touches: ["plan-draft", "coverage-check", "teaching-plan", "plan-field-ownership", "plan-re-approval", "focus-marking", "planning-boundary"]
 domain: "roadmap-planning/approval"
-last_updated_by: "#691"
+last_updated_by: "#66"
 status: active
 verification: verified
 ---
@@ -36,6 +36,7 @@ Approval writes the plan and its pages together or not at all. Printing the dige
 - [plan-field-ownership](plan-field-ownership.md) — which fields approval itself fills, and which it leaves for the reviewer and the session.
 - [plan-re-approval](plan-re-approval.md) — the second and later passes through this same gate, after a story has drifted.
 - [focus-marking](focus-marking.md) — the mark a reviewer overrides here, recorded per story and surviving later re-plans.
+- [planning-boundary](planning-boundary.md) — the block this gate prints last, and the refusal that keeps the recorded boundary the true complement of the slices.
 
 ## Decision Log
 
@@ -46,3 +47,7 @@ The draft is a file an agent can write, so a recorded clean verdict is the cheap
 ### 2026-09-19 — #691 — Moved here from the Nexus repository
 
 The teaching stage now ships as a package of its own, and this page came with it, decision log and all. Nothing it asserts changed; the store it is asserted in did. The Nexus repository keeps a retired forwarding entry under this slug, so a reader who greps the old name is told where the page went rather than finding nothing.
+
+### 2026-09-20 — #66 — The print ends with what the plan does not cover, and approval refuses a draft the roadmap has outgrown
+
+A reviewer of a partial plan was reading it as a whole one, so the print now ends with the roadmap's unplanned members, in the roadmap's own order, and says how many of the roadmap's members the plan covers. It is placed last so the reviewer reads what the plan does not cover immediately before deciding. The block breaks this print's own house style, under which every section always appears and shows that it is empty, because a fully planned roadmap's print had to stay exactly as it was. Approval gained one refusal. A draft with no slice for a story the roadmap now holds is refused, because the roadmap was re-resolved after the draft was written, and the plan would otherwise state that it did not plan a member it also did not list. The presence of a boundary is never on its own a reason to refuse. This entry also records the reciprocal link from planning-boundary.

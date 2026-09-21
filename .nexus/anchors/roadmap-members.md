@@ -1,6 +1,6 @@
 ---
 concept: roadmap-members
-source_sha: bfeac465b032b00980a496ad8af2692890046f52
+source_sha: 2ecb1ed1026c1ae151dee9c3bd5c18ee7fcd0b66
 generated: 2026-09-20
 ---
 
@@ -9,6 +9,6 @@ generated: 2026-09-20
 
 # Code Anchors: Roadmap Members
 
-- `src/roadmap.ts` — the member shape, the kind each member states, the body an unplanned member carries, and the one order over both kinds
+- `src/roadmap.ts` — the member shape, the kind each member states, the body an unplanned member carries, the one order over both kinds, and whether any member is planned (#90)
 - `src/roadmap.spec.ts` — pins the member list, the kind on every member, the blocker pulled ahead of the work waiting on it, and the unchanged order for a fully planned roadmap
 - `.gitignore` — the ignore rule that holds the resolved roadmap out of the repository rather than leaving it to review
