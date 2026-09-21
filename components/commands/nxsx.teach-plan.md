@@ -287,7 +287,12 @@ here. Then ask the reviewer, with `AskUserQuestion`, to approve, change marks, o
   Approval checks coverage again, refuses a draft that changed after the gate was printed (print it
   again), and reads every story's live state. If a story changed since the roadmap was resolved, or
   cannot be read, approval writes nothing and names each one: report it and **stop** — the roadmap is
-  re-planned from Phase 1 before it is approved. Otherwise it writes the committed plan.
+  re-planned from Phase 1 before it is approved. It also refuses a draft that has no slice for a
+  story the roadmap now holds — the roadmap was re-resolved after the draft was written — and the
+  same re-plan applies. Otherwise it writes the committed plan. When the roadmap holds epics nobody
+  has planned yet, the plan records each of them by issue number and title, in the roadmap's own
+  order, after its slices: that is where planning stopped. They are never slices and nothing teaches
+  them.
 - **Decline.** Run nothing. The committed workbook is unchanged and the draft stays in place.
 
 Approval moves no git state. Tell the learner the plan is written and theirs to commit.
