@@ -123,3 +123,18 @@ describe("the reviewer approves the sequence, splits, scaffolds and focus bounda
         expect(renderPlanDraft(back)).toBe(renderPlanDraft(before));
     });
 });
+
+describe("the gate's boundary block (story #87)", () => {
+    const draft: PlanDraft = { slices: [{ story: 11, builds: "learner", concepts: ["a"], assumes: [] }], coverage: { clean: true, gaps: [] } };
+    const titles: ReadonlyMap<number, string> = new Map([[11, "Pin"]]);
+
+    it("names a single unplanned member in the singular", () => {
+        const print: string = renderGateDigest(draft, { titles, focusMatchedNothing: false, boundary: { members: 2, unplanned: [{ epic: 40, title: "Later" }] } });
+        expect(print).toContain("The plan covers 1 of the roadmap's 2 members.");
+        expect(print).toContain("The epic named above is the one it did not plan");
+    });
+
+    it("prints nothing for a boundary holding no member", () => {
+        expect(renderGateDigest(draft, { titles, focusMatchedNothing: false, boundary: { members: 1, unplanned: [] } })).toBe(renderGateDigest(draft, { titles, focusMatchedNothing: false }));
+    });
+});

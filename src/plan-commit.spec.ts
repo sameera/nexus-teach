@@ -345,3 +345,55 @@ describe("the committed plan records the members it did not plan, in roadmap ord
         expect(() => parsePlan(text)).toThrow(/number and title and nothing else/);
     });
 });
+
+describe("the approval gate shows the planning boundary and what sits past it (story #87)", () => {
+    function printed(p: Planned): string {
+        const shown = gate(p);
+        expect(shown.code).toBe(0);
+        return shown.captured.out.join("\n");
+    }
+
+    it("names each member with no stories by issue number and title, in roadmap order, after the last slice", () => {
+        const print: string = printed(planned(DRAFT, MIXED));
+        const lines: string[] = print.split("\n");
+        const named: number[] = [lines.findIndex((l) => l.includes("#250")), lines.findIndex((l) => l.includes("#150"))];
+        expect(lines[named[0]]).toContain('"Not planned yet"');
+        expect(lines[named[1]]).toContain('"Also not planned"');
+        expect(named[0]).toBeLessThan(named[1]);
+        const lastSlice: number = lines.findIndex((l) => l.includes("#21 —"));
+        expect(named[0]).toBeGreaterThan(lastSlice);
+        expect(named[0]).toBeGreaterThan(lines.findIndex((l) => l.startsWith("Coverage:")));
+    });
+
+    it("states how many of the roadmap's members the plan covers, and that the named ones are those it did not plan", () => {
+        const print: string = printed(planned(DRAFT, MIXED));
+        expect(print).toContain("The plan covers 2 of the roadmap's 4 members.");
+        expect(print).toContain("The 2 epics named above are the ones it did not plan");
+    });
+
+    it("approves a partial plan and writes it, refusing nothing on account of the members it did not plan", () => {
+        const p: Planned = planned(DRAFT, MIXED);
+        const approved = approve(p);
+        expect(approved.captured.err).toEqual([]);
+        expect(approved.code).toBe(0);
+        expect(committedPlan(p).slices).toHaveLength(DRAFT.slices.length);
+    });
+
+    it("leaves the print of a roadmap whose members all have stories exactly as it was, block and all", () => {
+        const whole: string = printed(planned());
+        const mixed: string = printed(planned(DRAFT, MIXED));
+        expect(whole).not.toContain("planning boundary");
+        expect(whole).not.toContain("members");
+        // The mixed print is the whole print with the boundary block appended and nothing else changed.
+        expect(mixed.startsWith(`${whole}\n\n`)).toBe(true);
+    });
+
+    it("records the same fingerprint for the draft whether or not the roadmap holds unplanned members", () => {
+        const whole: Planned = planned();
+        const mixed: Planned = planned(DRAFT, MIXED);
+        printed(whole);
+        printed(mixed);
+        const shown = (p: Planned): string => fs.readFileSync(path.join(path.dirname(planDraftPath(p.repo, "alpha")), "gate-shown.txt"), "utf8");
+        expect(shown(mixed)).toBe(shown(whole));
+    });
+});

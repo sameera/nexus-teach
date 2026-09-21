@@ -261,7 +261,10 @@ shown, naming every gap. Report a refusal as it stands and **stop**.
 
 Otherwise the command prints the gate: every slice in order with its mark, each split story with its
 parts, each scaffold beside the slice that forced it, each concept the declaration removed beside the
-learner's phrase, the phrases that matched nothing, and whether the focus matched no story. Show it to
+learner's phrase, the phrases that matched nothing, and whether the focus matched no story. When the
+roadmap holds epics nobody has planned yet, it ends by naming each of them, in roadmap order, and
+saying how many of the roadmap's members the plan covers: the reviewer is approving a partial plan,
+and approval is not refused for that alone. Show it to
 the reviewer **word for word**. Do not summarise it, reorder it or leave a line out — the print is code's
 so that nothing can be dropped. It carries no lesson prose and no sources, because neither is decided
 here. Then ask the reviewer, with `AskUserQuestion`, to approve, change marks, or decline.
