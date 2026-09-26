@@ -1,7 +1,6 @@
 # Nexus Teach
 
-The teaching stage for [Nexus](https://github.com/sameera/nexus): it turns a roadmap of shipped
-stories into a workbook a person learns the codebase from, one lesson per sitting.
+The teaching stage for [Nexus](https://github.com/sameera/nexus): it turns a roadmap of stories into a workbook a person learns the codebase from, one lesson per sitting.
 
 It ships as a second package beside Nexus, into the same component root, under its own `nxsx`
 namespace. Installing or removing either package leaves the other's components exactly where they
