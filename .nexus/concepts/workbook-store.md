@@ -1,9 +1,9 @@
 ---
 title: "Workbook Store"
 aliases: ["workbook", "workbook folder", "lessons folder", "teaching plan", "workbook placement"]
-touches: ["learner-folder", "lesson-renderer", "teaching-plan", "workbook-home-page", "reference-page", "roadmap-resolution", "roadmap-naming"]
+touches: ["learner-folder", "lesson-renderer", "teaching-plan", "workbook-home-page", "reference-page", "roadmap-resolution", "workbook-name"]
 domain: "workbook-rendering/store"
-last_updated_by: "#65"
+last_updated_by: "#108"
 status: active
 verification: verified
 ---
@@ -34,7 +34,7 @@ The store is created on first use and holds one folder per workbook. Inside a wo
 - [workbook-home-page](workbook-home-page.md) — the page written at the workbook's root beside the lesson pages, from the plan this store holds.
 - [reference-page](reference-page.md) — the authored prose of reference pages, one file per concept, in its own folder beside the lessons and never named in the plan.
 - [roadmap-resolution](roadmap-resolution.md) — creates the workbook once a roadmap resolves.
-- [roadmap-naming](roadmap-naming.md) — settles the name this store takes as its slug, from the issue the lead named the roadmap by.
+- [workbook-name](workbook-name.md) — settles the name this store takes as its slug.
 
 ## Decision Log
 
@@ -65,3 +65,7 @@ A workbook is still created only after its roadmap resolves, and it still takes 
 ### 2026-09-20 — #65 — Reciprocal link from roadmap-naming
 
 Where this store's slug comes from is now settled on its own page, because a roadmap can be named by one initiative issue number as well as by a list or a search. The slug is that roadmap's name, so the edge points at naming rather than at resolution, and the resolution edge keeps only the fact that resolving is what creates the workbook.
+
+### 2026-09-26 — #108 — Reciprocal link from workbook-name
+
+The rules for this store's slug moved from roadmap-naming to their own page, workbook-name. The edge that says where the slug comes from moved with them, so this store no longer links to roadmap-naming. The slug is still the roadmap's name, and the store's layout and placement rules are unchanged.
