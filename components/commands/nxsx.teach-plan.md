@@ -1,6 +1,6 @@
 ---
 name: nxsx.teach-plan
-description: The planning phase of the teaching stage. Resolves a roadmap from an epic issue or a backlog query, creates the workbook it will be taught in, runs the one bounded interview that establishes what the learner already knows and what they came to learn, then reads each story once through its own extraction subagent, writes the plan's stubs as an uncommitted draft, orders that draft and rewrites it so each concept is taught once, then shows the reviewer the approval gate and, on approval, writes the committed plan. Plans the roadmap; writes no lesson.
+description: The planning phase of the teaching stage. Resolves a roadmap from an epic issue, an initiative issue or a backlog query, creates the workbook it will be taught in, runs the one bounded interview that establishes what the learner already knows and what they came to learn, then reads each story once through its own extraction subagent, writes the plan's stubs as an uncommitted draft, orders that draft and rewrites it so each concept is taught once, then shows the reviewer the approval gate and, on approval, writes the committed plan. Plans the roadmap; writes no lesson.
 category: learning
 phase: planning
 references:
@@ -32,13 +32,30 @@ resolver does and refuses.
 $ARGUMENTS
 ```
 
-Either an **epic issue number** (`<n>` or `#<n>`), or **`--query <expression>`** with a name for the
-roadmap.
+Exactly one of:
+
+- an **epic issue number** (`<n>` or `#<n>`);
+- **`--initiative <n>`**, an initiative's issue number, standing for the epics beneath it;
+- **`--query <expression>`**, with a name for the roadmap.
+
+A name for the roadmap is optional with an epic or an initiative. A bare issue number always means an
+epic; an initiative is named only by `--initiative`.
+
+If the input gives more than one of the three — an initiative number together with an epic number or
+a search expression, or an epic number together with a search expression — **stop** before running
+anything, and say that only one of an epic number, `--initiative <n>` and `--query <expression>` may
+be given. Ask the learner nothing.
 
 # Phase 1 — Resolve the roadmap
 
 ```bash
-nxsx workbook roadmap <name> --epic <n>
+nxsx workbook roadmap [<name>] --epic <n>
+```
+
+or, for the epics beneath one initiative:
+
+```bash
+nxsx workbook roadmap [<name>] --initiative <n>
 ```
 
 or, for a programme of epics:
@@ -47,12 +64,22 @@ or, for a programme of epics:
 nxsx workbook roadmap <name> --query "<expression>"
 ```
 
-Resolution is read-only on the issue graph and it validates every epic before anything else happens.
-Report a named refusal as it stands and **stop**:
+Pass `<name>` only when the input gave one, and pass it as given. With `--initiative` and no name, the
+workbook is named from the initiative's title; with `--epic` and no name, from the epic's. Never make
+up a name yourself — the workbook's name is the identity the one interview is keyed on. A query has
+no issue to take a name from, so it always needs one.
 
-- `not-an-epic` / `epic-not-found` — the number does not name an epic. Ask the learner nothing.
+Resolution is read-only on the issue graph and it validates every epic before anything else happens.
+An initiative stands for its children and nothing else: each child is resolved exactly as if it had
+been named as an epic. Report a named refusal as it stands and **stop**:
+
+- `not-an-epic` / `epic-not-found` — the number does not name an epic, or a child of the initiative
+  is not one. Ask the learner nothing.
+- `roadmap-initiative-empty` — the initiative has nothing filed beneath it. Check the number, or file
+  the epics under it.
 - `epic-not-planned` — the epic is a stub; it has to be planned first.
-- `roadmap-too-many-epics` / `roadmap-multi-repo` — the query is too wide. Say what to narrow.
+- `roadmap-too-many-epics` / `roadmap-multi-repo` — the query or the initiative is too wide. Say what to
+  narrow.
 - `roadmap-cycle` — the stories block each other on the issue graph; that is fixed there, not here.
 
 A successful run has already created the workbook and written the roadmap. Do not commit it, and do

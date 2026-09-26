@@ -23,6 +23,7 @@ phase reads the issue graph to learn what a story says.
 
 ```bash
 nxsx workbook roadmap <name> --epic <n>       # resolve a roadmap from one epic issue
+nxsx workbook roadmap <name> --initiative <n> # resolve one from the epics beneath an initiative
 nxsx workbook roadmap <name> --query <expr>   # resolve one from a backlog query
 nxsx workbook interview <name>                # the slate to ask from
 nxsx workbook interview <name> --answers <f>  # record what the learner said

@@ -11,3 +11,6 @@ vitest.config.*.timestamp*
 
 # local verification against an unpublished Nexus build (see CONTRIBUTING.md)
 *.tgz
+
+#local scratchpad
+.tmp/
