@@ -8,6 +8,7 @@ import { readInterview, recordInterview } from "./interview.js";
 import { LEARNER_IGNORE_RULE } from "./learner-store.js";
 import { LESSON_PHASE_ENTRY_POINT, SHARED_REFERENCES, readPhaseEntryPoint } from "./phase-references.js";
 import { planDraftPath, readPlanDraft } from "./plan-draft.js";
+import { notFullySpecified } from "./planning-boundary.js";
 import { authoredComponentRoot } from "./component-payload.js";
 import { writeRoadmap, type Roadmap } from "./roadmap.js";
 import { runWorkbookCli } from "./workbook-cli.js";
@@ -392,6 +393,18 @@ describe("a roadmap every member of which is an epic nobody has planned yet", ()
         expect(runWorkbookCli(["extract", "tail"], captured)).toBe(1);
         expect(captured.err.join("\n")).toContain("nothing to plan yet");
         expect(captured.out).toEqual([]);
+    });
+
+    it("names the first unplanned epic in roadmap order and asks how it gets planned (epic #111)", () => {
+        const reordered: Roadmap = { ...UNPLANNED, members: [UNPLANNED.members[1], UNPLANNED.members[0]] };
+        const repo: string = planned(reordered);
+        const captured: Captured = io(repo);
+        expect(runWorkbookCli(["extract", "tail"], captured)).toBe(1);
+        const err: string = captured.err.join("\n");
+        expect(err).toContain('The first of them in roadmap order is #250, "Also not planned".');
+        expect(err).toContain(notFullySpecified(250, "Also not planned"));
+        expect(err).not.toContain('#150 "Not planned yet"');
+        expect(err).toContain("the workbook and its interview are left as they are");
     });
 
     it("writes no draft, even when extraction is skipped", () => {
