@@ -8,7 +8,7 @@ import { type RunResult, type Runner, defaultRunner } from "@nexus/workspace/run
 import { PROBE_SCRATCH_PATH } from "./fence-probe";
 import { learnerRecordDir, listLearnerRecords, readLearnerRecord } from "./learner-store";
 import { type AuthoredProse } from "./lesson-writer";
-import { epicHome, planningBriefName, renderPlanningBrief, type EpicHome } from "./planning-boundary";
+import { epicHome, notFullySpecified, planningBriefName, renderPlanningBrief, type EpicHome } from "./planning-boundary";
 import { type LiveStory } from "./teaching-plan";
 import { runTeachingSession, type SessionResult } from "./teaching-session";
 import { runWorkbookCli, type WorkbookCliIo } from "./workbook-cli";
@@ -195,6 +195,40 @@ describe("the command line treats the boundary verdict as a normal end (story #9
         expect(code).toBe(0);
         expect(err).toEqual([]);
         expect(out.join("\n")).toContain("#250");
+    });
+
+    it("asks how the named epic gets planned, offering exactly the three ways (epic #111)", () => {
+        const repo = makeRepo();
+        teachAndFinish(repo);
+        const out: string[] = [];
+        const captured: WorkbookCliIo = { cwd: repo, stdout: (line) => out.push(line), stderr: () => undefined };
+
+        runWorkbookCli(["teach", "rdl", "--root", repo], captured, runner());
+
+        expect(out).toContain(notFullySpecified(250, "Teach the drill from the hint log"));
+        expect(notFullySpecified(250, "Teach the drill from the hint log")).toBe(
+            'The next epic to be built, #250 "Teach the drill from the hint log", is not fully specified. ' +
+            "Ask the learner how it gets planned: plan it here, let the agent plan it, or plan it in a fresh session.",
+        );
+    });
+
+    it("keeps writing the planning brief on the boundary run, for the learner who plans in a fresh session (epic #111)", () => {
+        const repo = makeRepo();
+        teachAndFinish(repo);
+
+        runWorkbookCli(["teach", "rdl", "--root", repo], { cwd: repo, stdout: () => undefined, stderr: () => undefined }, runner());
+
+        expect(brief(repo)).toContain("/nxs.epic 250");
+    });
+
+    it("asks nothing on a finished workbook whose plan records no epic past the boundary", () => {
+        const repo = makeRepo([]);
+        teachAndFinish(repo);
+        const out: string[] = [];
+
+        runWorkbookCli(["teach", "rdl", "--root", repo], { cwd: repo, stdout: (line) => out.push(line), stderr: () => undefined }, runner());
+
+        expect(out.join("\n")).not.toContain("is not fully specified");
     });
 });
 

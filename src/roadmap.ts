@@ -112,15 +112,28 @@ export function hasPlannedMember(roadmap: Roadmap): boolean {
 }
 
 /**
+ * The first member nobody has planned yet, in the roadmap's own member order, or null when every
+ * member is planned. On a roadmap with nothing planned it is the first member, and it is the epic the
+ * planning phase asks the learner how to plan (epic #111).
+ */
+export function firstUnplannedMember(roadmap: Roadmap): RoadmapMember | null {
+    return roadmap.members.find((member) => member.kind === "unplanned") ?? null;
+}
+
+/**
  * The refusal every phase that reads stories gives a roadmap with no planned member (record #89,
  * invariant 4). The workbook and the interview are left where they are: the roadmap is still growing,
- * and planning resumes from them once one of its members is planned.
+ * and planning resumes from them once one of its members is planned. It names the first member in
+ * roadmap order, because that is the epic the planning phase then asks how to plan (epic #111).
  */
 export function nothingPlannedYet(roadmap: Roadmap): string {
+    const first: RoadmapMember | null = firstUnplannedMember(roadmap);
+    const next: string = first === null ? "" : ` The first of them in roadmap order is #${first.number}, "${first.title.replace(/\s+/g, " ").trim()}".`;
     return (
         `every member of the roadmap ${roadmap.name} is an epic nobody has planned yet ` +
         `(${roadmap.members.map((m) => `#${m.number}`).join(", ")}), so there is nothing to plan yet. ` +
-        `No story was read and no draft was written; plan one of those epics and re-run.`
+        `No story was read and no draft was written, and the workbook and its interview are left as they are.` +
+        `${next} Plan it and re-run from 'nexus workbook roadmap ${roadmap.name}'.`
     );
 }
 

@@ -40,11 +40,13 @@ import { resolveWorkbookHome, type WorkbookHomeResult } from "./workbook-placeme
 import { type AuthoredPinningTest, type AuthoredProse, type RevisitProse } from "./lesson-writer.js";
 import { type IssueReader, type LiveStory } from "./teaching-plan.js";
 import { runTeachingSession, type SessionResult } from "./teaching-session.js";
+import { notFullySpecified } from "./planning-boundary.js";
 import { parseCommands, type DeclaredCommands, type UnplannedMember, type WorkbookPlan } from "./workbook-plan.js";
 import { approvePlan, carriedStubs, draftFingerprint, unplannedMembers, type Approval } from "./plan-commit.js";
 import {
     epicsFromInitiative,
     epicsFromQuery,
+    firstUnplannedMember,
     hasPlannedMember,
     nameFromTitle,
     nothingPlannedYet,
@@ -364,6 +366,7 @@ function reportSession(result: SessionResult, io: WorkbookCliIo): number {
             io.stdout(`The slice has no pinning test yet: put it in that file's front matter under 'pinning_tests' as ${request.slice}, with its file and text.`);
         }
     }
+    if (result.outcome.kind === "plan-next") io.stdout(notFullySpecified(result.outcome.epic, result.outcome.title));
     if (result.outcome.kind === "tests") {
         for (const request of result.outcome.requests) io.stdout(`  ${request.slice}: #${request.story} ${JSON.stringify(request.title)} on ${request.branch}`);
         io.stdout(`Write the tests into a file's front matter under 'pinning_tests' and re-run with --prose <file>.`);
@@ -590,6 +593,10 @@ function runExtract(repoRoot: string, name: string, flags: Flags, io: WorkbookCl
     // here, once, before any is read (record #89, invariant 4).
     if (!hasPlannedMember(roadmap)) {
         io.stderr(nothingPlannedYet(roadmap));
+        // The same question the session asks at the planning boundary, about the first member in
+        // roadmap order (epic #111). The stop stays a stop: nothing here plans the epic.
+        const first: RoadmapMember | null = firstUnplannedMember(roadmap);
+        if (first !== null) io.stderr(notFullySpecified(first.number, first.title));
         return 1;
     }
     // The focus comes from the recorded interview and from nowhere else: the pass asks the learner

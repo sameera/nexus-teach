@@ -59,6 +59,19 @@ export function renderBoundaryReport(slug: string, boundary: PlanningBoundary): 
 }
 
 /**
+ * The one question both stops ask when they reach an epic nobody has planned (epic #111): the
+ * teaching session at the planning boundary, and the planning phase on a roadmap with nothing
+ * planned. Both print this same line, so the three answers are offered in the same words wherever
+ * the learner meets an unplanned epic. The title is issue text and is kept to one line.
+ */
+export function notFullySpecified(epic: number, title: string): string {
+    return (
+        `The next epic to be built, #${epic} "${oneLine(title)}", is not fully specified. ` +
+        `Ask the learner how it gets planned: plan it here, let the agent plan it, or plan it in a fresh session.`
+    );
+}
+
+/**
  * Where the epic to plan lives, and where the workbook lives — two repositories that are the same
  * one only outside a workspace.
  *

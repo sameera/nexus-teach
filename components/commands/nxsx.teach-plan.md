@@ -77,7 +77,8 @@ been named as an epic. Report a named refusal as it stands and **stop**:
   is not one. Ask the learner nothing.
 - `roadmap-initiative-empty` — the initiative has nothing filed beneath it. Check the number, or file
   the epics under it.
-- `epic-not-planned` — the epic is a stub; it has to be planned first.
+- An epic nobody has planned yet is **not** a refusal here. It resolves as an unplanned member, and
+  a roadmap whose members are all unplanned is handled in Phase 3.
 - `roadmap-too-many-epics` / `roadmap-multi-repo` — the query or the initiative is too wide. Say what to
   narrow.
 - `roadmap-cycle` — the stories block each other on the issue graph; that is fixed there, not here.
@@ -116,8 +117,9 @@ learner skipped is left out of the file; code records it as unanswered, which is
 answering that they know nothing.
 
 If the roadmap already has an interview, the command prints the recorded answers and asks nothing.
-That is correct: exactly one interview exists per roadmap. **This is the last point at which the
-learner is asked anything.**
+That is correct: exactly one interview exists per roadmap. **This is the last interview question the
+learner is asked.** After it, the learner is asked only the question about an unplanned first epic
+(Phase 3) and the approval gate (Phase 7).
 
 # Phase 3 — Extract each story's concepts
 
@@ -135,9 +137,10 @@ nobody has planned yet is never listed as a story and never becomes a slice.
 
 When the roadmap holds epics nobody has planned yet, it also prints `extractEpics`: those epics still
 to read. Each is read once too, from its own title and body, so the plan can leave a concept that
-epic will introduce to it instead of teaching it early as background. It stops before any subagent starts when the roadmap has no interview, and when no
-member of the roadmap is planned — there is nothing to plan yet, and no draft is written; report
-either as it stands and stop.
+epic will introduce to it instead of teaching it early as background. It stops before any subagent
+starts when the roadmap has no interview; report that as it stands and stop. It also stops when no
+member of the roadmap is planned. That stop is not the end of this phase: see **Nothing planned
+yet** below.
 
 Start one `nxsx-concept-extractor` subagent per listed story, in parallel. Give each **only** the
 roadmap name and its story number — never a prompt built from the story's text, and never anything you
@@ -149,6 +152,53 @@ Start one more `nxsx-concept-extractor` subagent per listed unplanned epic, in t
 each **only** the roadmap name and the epic number, and say it is an epic: it runs
 `nxsx workbook extract <name> --epic <n>`. The same rules hold — its list reaches you only through
 the check, and a refused list is not repaired.
+
+## Nothing planned yet
+
+When every member of the roadmap is an epic nobody has planned, `extract` stops, writes no draft and
+reads no story. The workbook and its interview stay as they are. Its refusal names the first
+unplanned epic in roadmap order, by number and title, and ends with this line:
+
+```text
+The next epic to be built, #<n> "<title>", is not fully specified. Ask the learner how it gets planned: plan it here, let the agent plan it, or plan it in a fresh session.
+```
+
+Do not stop there. Tell the learner that the next epic to be built is not fully specified, and name
+it by the number and title the refusal printed. Then ask, with `AskUserQuestion`, how that epic gets
+planned. Offer exactly these three choices, and no others:
+
+- **Plan it here.** Run `/nxs.epic <n>` through the `Skill` tool. The learner answers every question
+  that command asks, its approval gate included. Relay each question as the command words it, and
+  answer none of them yourself. Then re-plan (below), and show the learner the approval gate in
+  Phase 7 as usual.
+- **Let the agent plan it.** Run `/nxs.epic <n>` through the `Skill` tool, and answer every question
+  that command asks with your own judgement, from the epic's issue and this repository. Approve its
+  gate with every box ticked. Then re-plan (below) and approve the new plan at Phase 7 yourself. Ask
+  the learner nothing on this path, with one exception. A first approval needs the suite and grading
+  commands, and Phase 7 forbids inferring them. So when this workbook has no approved plan yet, ask
+  the learner for both commands as soon as they pick this choice, before `/nxs.epic` starts. Nothing
+  else is asked after that.
+- **Plan it in a fresh session.** Run nothing more. Tell the learner to close this session, run
+  `/nxs.epic <n>` in a new one, and then run `/nxsx.teach-plan` again with the same input and the
+  workbook's name. The workbook and its interview are left as they are, so the next run asks no
+  interview question. Stop.
+
+Ask this every time the stop is reached. Never reuse an earlier answer, and never pick a choice for
+the learner.
+
+**A refusal while the agent plans.** On the agent's path, any gate may refuse: a gate of
+`/nxs.epic`, a refusal from a `nxsx workbook` verb, or a refused approval in Phase 7. When one does,
+stop. Report the refusal as it stands, name it, and ask the learner what to do. Never work around
+it: do not edit an issue, change a mark, pass a waiver or re-run a gate with different input to get
+past it.
+
+**Re-plan.** Once `/nxs.epic <n>` has filed the epic's stories, run this chain again from Phase 1,
+with the same input as this run and the workbook's name given explicitly: the name Phase 1 printed.
+Planning an epic can change its title, and a roadmap named from a changed title is a different
+workbook with no interview. Phase 2 then prints the recorded answers and asks nothing: the interview
+is reused, never asked again. Phase 3 onward runs as usual, so the draft is written from the newly
+planned epic. If the roadmap still has no planned member, the stop names the next unplanned epic, and
+the same question is asked again.
 
 # Phase 4 — Merge the concept vocabulary
 
@@ -362,6 +412,7 @@ to 7). A refused re-approval leaves the approved plan, its lessons and its pages
 # Hand off
 
 Report the roadmap's story count, the interview's outcome, the draft's learner and handoff counts, and
-what the reviewer decided at the gate. A handoff mark builds nothing: write no handoff prompt and start
+what the reviewer decided at the gate. When the roadmap had nothing planned, also report which of the
+three choices the learner picked and, on an in-session choice, the epic that was planned. A handoff mark builds nothing: write no handoff prompt and start
 no coding-agent session here. Lesson writing is `/nxsx.teach <name>` — a fresh invocation, which is what
 lets it load the references this phase does not.
