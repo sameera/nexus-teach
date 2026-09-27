@@ -1,9 +1,9 @@
 ---
 title: "Planning Boundary"
 aliases: ["planning boundary", "where planning stops", "unplanned list", "partial plan", "epics the plan did not cover", "how much of the roadmap the plan covers", "nothing planned yet"]
-touches: ["roadmap-members", "story-concept-extraction", "plan-draft", "plan-approval-gate", "teaching-plan", "plan-re-approval", "planning-brief", "waiting-concept"]
+touches: ["roadmap-members", "story-concept-extraction", "plan-draft", "plan-approval-gate", "teaching-plan", "plan-re-approval", "planning-brief", "waiting-concept", "unplanned-epic-choice"]
 domain: "roadmap-planning"
-last_updated_by: "#88"
+last_updated_by: "#111"
 status: active
 verification: verified
 ---
@@ -18,7 +18,7 @@ The kind each member states is the only input. An empty story list answers nothi
 
 No phase carries the boundary forward. Approval reads it from the roadmap it is approving against, and the gate's print is handed it beside the facts it already receives. It is never written onto the draft, because the gate records a fingerprint of the draft it printed, and a second kind of entry there would change that fingerprint on every mixed roadmap.
 
-A roadmap with no planned member stops the chain at extraction. The workbook and the recorded interview are left in place, because the roadmap is still growing.
+A roadmap with no planned member stops the chain at extraction. The stop names the first unplanned member, and the planning phase asks the learner how to plan it. The workbook and the recorded interview are left in place, because the roadmap is still growing.
 
 ## Key Invariants
 
@@ -40,6 +40,7 @@ A roadmap with no planned member stops the chain at extraction. The workbook and
 - [plan-re-approval](plan-re-approval.md) — derives the list again from the roadmap it is approving, so a member planned since the last approval leaves the boundary.
 - [planning-brief](planning-brief.md) — reads this list's first entry to name the epic a learner plans next, and is the only reader of it.
 - [waiting-concept](waiting-concept.md) — printed inside this boundary's block at the gate, under the epic it waits on; never written into the list.
+- [unplanned-epic-choice](unplanned-epic-choice.md) — asks the learner how an epic past this boundary gets planned, from the planning phase or from a session.
 
 ## Decision Log
 
@@ -54,3 +55,7 @@ The list was written down so that a reader could tell a plan that covered its wh
 ### 2026-09-21 — #88 — Reciprocal link from waiting-concept
 
 The block the gate prints for this boundary now also names, under each unplanned epic, any concept the plan left to it. Nothing about what the recorded list holds changed: a concept waiting on an epic is never written into the committed plan, so an entry still carries a number and a title and nothing else.
+
+### 2026-09-27 — #111 — A roadmap with nothing planned names its first unplanned member and asks how it gets planned
+
+A roadmap with no planned member still stops extraction before any story is read, and still writes no draft. The stop now names the first unplanned member in the roadmap's order, and the planning phase asks the learner how that epic gets planned instead of ending there. The session's boundary verdict ends with the same question. Before this, the learner had to plan the first epic by hand before the workbook could be planned. The stop stays in the code, and the question and the planning run live in the command wording, so no code plans an epic.

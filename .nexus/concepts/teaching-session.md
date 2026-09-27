@@ -1,9 +1,9 @@
 ---
 title: "Teaching Session"
 aliases: ["workbook session", "session chain", "one sitting", "gated chain", "session brief", "one lesson per session", "walks the plan by position", "pinning test on arrival"]
-touches: ["teaching-plan", "plan-drift-gate", "cold-drill", "just-in-time-lesson", "handoff-prompt", "return-verification", "workbook-handoff", "slice-identity", "reference-page", "planning-brief", "record-owed"]
+touches: ["teaching-plan", "plan-drift-gate", "cold-drill", "just-in-time-lesson", "handoff-prompt", "return-verification", "workbook-handoff", "slice-identity", "reference-page", "planning-brief", "record-owed", "unplanned-epic-choice"]
 domain: "teaching-sessions"
-last_updated_by: "#68"
+last_updated_by: "#111"
 status: active
 verification: verified
 ---
@@ -43,6 +43,7 @@ The session moves no version-control state. It writes files under the workbook a
 - [reference-page](reference-page.md) — the page a second drill earns, which the chain names in its brief and checks before writing anything.
 - [planning-brief](planning-brief.md) — the verdict the chain returns instead of the finished report when the plan still records unplanned epics.
 - [record-owed](record-owed.md) — the verdict the chain returns instead of a lesson when the slice's epic has no approved decision record.
+- [unplanned-epic-choice](unplanned-epic-choice.md) — the question the boundary verdict ends with, and the in-session planning and re-plan that may follow it.
 
 ## Decision Log
 
@@ -69,3 +70,7 @@ The chain reported a finished workbook whenever nothing was left to teach. On a 
 ### 2026-09-21 — #68 — A second verdict, for a slice whose epic has not been designed yet
 
 The chain now also stops before writing a lesson when the slice the learner has arrived at builds a story whose epic has no approved decision record. A lesson's theory is written from that record, so writing one without it would ground the lesson in a repository search instead. The question is asked after the drift check and the suite, and after the arm that re-opens a written lesson, so a lesson already written is never re-gated and nobody is stranded mid-exercise. The chain still fetches nothing itself: the record's existence and approval are handed in, the way the story reader already is. The body here is unchanged because it sits at the word cap. The record-owed page states the rule in full. This entry also records the reciprocal link to record-owed.
+
+### 2026-09-27 — #111 — Reciprocal link from unplanned-epic-choice
+
+The boundary verdict now ends with the question of how the next epic gets planned. The chain itself did not change. It still stops at the boundary, and any planning or re-plan that follows runs outside it.

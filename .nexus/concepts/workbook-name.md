@@ -1,9 +1,9 @@
 ---
 title: "Workbook Name"
 aliases: ["roadmap name", "workbook slug", "the name a roadmap is taught under", "default workbook name"]
-touches: ["roadmap-naming", "workbook-store"]
+touches: ["roadmap-naming", "workbook-store", "unplanned-epic-choice"]
 domain: "roadmap-planning"
-last_updated_by: "#108"
+last_updated_by: "#111"
 status: active
 verification: verified
 ---
@@ -29,9 +29,14 @@ Without a name, a roadmap named by an initiative takes that initiative's title, 
 
 - [roadmap-naming](roadmap-naming.md) — says which issue the lead named the roadmap by, which is the issue an unnamed workbook takes its title from.
 - [workbook-store](workbook-store.md) — takes the name settled here as the workbook's slug, which one interview per roadmap is keyed on.
+- [unplanned-epic-choice](unplanned-epic-choice.md) — passes the workbook's name explicitly on a re-plan, because a name taken from the epic's changed title would be another workbook.
 
 ## Decision Log
 
 ### 2026-09-26 — #108 — Split from roadmap-naming, and the name is optional for an epic or an initiative
 
 The rules for the roadmap's name moved here from the naming page, which had reached its size limit. With this epic the planning phase stopped requiring a name for a roadmap named by an epic or an initiative. When the lead gives none, resolution takes it from the issue's title. The planning phase passes a name only when the lead gave one, and passes it as given. The name is the identity the one interview is keyed on. A name made up by the planning phase could differ from the name resolution chooses, and that would split one roadmap across two workbooks. A search still needs a name, because it has no issue to take a title from.
+
+### 2026-09-27 — #111 — Reciprocal link from unplanned-epic-choice
+
+A re-plan after an epic is planned now passes the workbook's name explicitly. Planning an epic can change its title, and a name taken from the changed title would name a different workbook with no interview. The rules for choosing a name did not change.
