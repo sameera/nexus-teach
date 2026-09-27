@@ -1,9 +1,9 @@
 ---
 title: "Planning Brief"
 aliases: ["plan the next epic", "epic to plan next", "boundary brief", "planning is owed", "the workbook is not finished", "ran out of taught slices"]
-touches: ["teaching-session", "planning-boundary", "learner-folder", "record-owed"]
+touches: ["teaching-session", "planning-boundary", "learner-folder", "record-owed", "unplanned-epic-choice"]
 domain: "teaching-sessions"
-last_updated_by: "#68"
+last_updated_by: "#111"
 status: active
 verification: verified
 ---
@@ -36,6 +36,7 @@ The brief names where the epic lives and where the workbook lives separately, be
 - [planning-boundary](planning-boundary.md) — the recorded list this verdict reads, and whose first entry is the epic named.
 - [learner-folder](learner-folder.md) — where the brief is kept, under its own record kind, so it is never a page and can never appear as drift.
 - [record-owed](record-owed.md) — the verdict that follows this one in a sitting, once the epic named here has been planned.
+- [unplanned-epic-choice](unplanned-epic-choice.md) — the question asked after this brief is written; the fresh-session choice points the learner at it.
 
 ## Decision Log
 
@@ -46,3 +47,7 @@ A plan written from a roadmap that is still growing records the epics it did not
 ### 2026-09-21 — #68 — Reciprocal link from record-owed
 
 Mechanical reciprocity fan-out: planning the epic this brief names leads straight to the next stop, because the epic now has stories but no decision record, and a lesson's theory is written from that record. The two briefs are the two halves of one sitting. Each is filed under its own record kind for that reason: both are named from the same epic's number, so one shared kind would have the second silently overwrite the first, and no session removes a brief.
+
+### 2026-09-27 — #111 — Reciprocal link from unplanned-epic-choice
+
+The session now ends its boundary verdict by asking how the named epic gets planned. The brief is still written first, whatever the learner picks, because the session cannot know the answer when it writes the brief. On an in-session choice the brief is a leftover note that nothing reads. Nothing about what the brief holds or where it is kept changed.

@@ -1,9 +1,9 @@
 ---
 title: "Roadmap Members"
 aliases: ["roadmap member", "planned member", "unplanned member", "epic nobody has planned yet", "member kind", "member order", "where planned work runs out"]
-touches: ["roadmap-resolution", "story-concept-extraction", "plan-draft", "planning-boundary"]
+touches: ["roadmap-resolution", "story-concept-extraction", "plan-draft", "planning-boundary", "unplanned-epic-choice"]
 domain: "roadmap-planning"
-last_updated_by: "#88"
+last_updated_by: "#111"
 status: active
 verification: verified
 ---
@@ -36,6 +36,7 @@ Members are ordered by ascending issue number, with one exception: a member that
 - [story-concept-extraction](story-concept-extraction.md) — reads the stories planned members contribute, and reads each unplanned member's title and body once for what it will introduce.
 - [plan-draft](plan-draft.md) — is written beside this list and turns the stories on it into slices.
 - [planning-boundary](planning-boundary.md) — reads the kind stated here to decide where planning stops, and records the members that contributed no slice.
+- [unplanned-epic-choice](unplanned-epic-choice.md) — asks about the first unplanned member in this list's order when the roadmap has no planned member.
 
 ## Decision Log
 
@@ -50,3 +51,7 @@ The kind stated on every member is now read by the phases that run after resolut
 ### 2026-09-21 — #88 — An unplanned member's body gains a reader
 
 The title and body an unplanned member carries are now read, once, by an extraction unit, for the concepts that epic will introduce. That lets the plan leave those concepts to the epic instead of scaffolding them. An unplanned member still contributes no story, no stub and no slice, and nothing about what a member carries or how the order is built changed.
+
+### 2026-09-27 — #111 — Reciprocal link from unplanned-epic-choice
+
+The member order gained a reader. On a roadmap with no planned member, the first unplanned member in this order is the epic the learner is asked how to plan. The order is still not a teaching order, and nothing about how it is built changed.
