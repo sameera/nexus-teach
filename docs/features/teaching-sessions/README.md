@@ -13,6 +13,7 @@ arrival, the concept it drills first, and where it pauses.
 - **A stub is planned when the learner reaches it** — [#67](https://github.com/sameera/nexus-teach/issues/67)
 - **The decision record is written before the lesson needs it** — [#68](https://github.com/sameera/nexus-teach/issues/68)
 - **An unplanned epic is planned in whichever of three ways the learner picks** — [#111](https://github.com/sameera/nexus-teach/issues/111)
+- **Codex users can plan and teach a workbook with Claude workflow parity** — [#120](https://github.com/sameera/nexus-teach/issues/120)
 
 ## Notes
 
