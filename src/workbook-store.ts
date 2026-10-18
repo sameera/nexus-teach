@@ -223,14 +223,24 @@ export function writeWorkbookPlan(repoRoot: string, slug: string, plan: Workbook
     return target;
 }
 
+/** Authored files a session is about to write, which a render checks as though they were written. */
+export interface PendingSources {
+    /** Lessons, named by their file inside `lessons/`. */
+    lessons?: readonly LessonSource[];
+    /** Reference pages, named by their path inside the workbook, as `readReferences` names them. */
+    references?: readonly LessonSource[];
+}
+
 /**
  * What a workbook with a teaching plan renders from: the lessons it holds, in the plan's order, and the
  * slices still to be written. Every render path takes these same inputs, so the pages a session
  * writes, the pages approval writes and the pages check mode expects are one render. The plan is passed
- * rather than read, so approval can render against the plan it is about to write.
+ * rather than read, so approval can render against the plan it is about to write — and the pending
+ * files likewise, so a session can render the lesson it is about to write before writing it.
  */
-export function planRenderOptions(repoRoot: string, slug: string, plan: WorkbookPlan): RenderOptions {
-    const present: string[] = writtenLessonFiles(repoRoot, slug);
+export function planRenderOptions(repoRoot: string, slug: string, plan: WorkbookPlan, pending: PendingSources = {}): RenderOptions {
+    const pendingLessons: Map<string, string> = new Map((pending.lessons ?? []).map((l) => [l.file, l.source]));
+    const present: string[] = [...new Set([...writtenLessonFiles(repoRoot, slug), ...pendingLessons.keys()])].sort();
     const order: string[] = plan.slices.map((slice) => slice.lesson).filter((lesson) => lesson !== "");
     const unplanned: string[] = present.filter((file) => !order.includes(file));
     if (unplanned.length > 0) {
@@ -239,11 +249,18 @@ export function planRenderOptions(repoRoot: string, slug: string, plan: Workbook
             `A lesson with no place in the plan has no place in the workbook, and nothing was written.`,
         );
     }
+    const pendingReferences: readonly LessonSource[] = pending.references ?? [];
+    const references: LessonSource[] = [
+        ...readReferences(repoRoot, slug).filter((r) => !pendingReferences.some((p) => p.file === r.file)),
+        ...pendingReferences,
+    ].sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
     return {
-        lessons: order.filter((file) => present.includes(file)).map((file) => ({ file, source: fs.readFileSync(path.join(lessonsDir(repoRoot, slug), file), "utf8") })),
+        lessons: order
+            .filter((file) => present.includes(file))
+            .map((file) => ({ file, source: pendingLessons.get(file) ?? fs.readFileSync(path.join(lessonsDir(repoRoot, slug), file), "utf8") })),
         stubs: planStubs(plan, present).map((stub) => stub.label),
         home: homeEntries(plan, present),
-        references: readReferences(repoRoot, slug),
+        references,
     };
 }
 
