@@ -60,6 +60,19 @@ nxsx workbook teach <name> --prose <file>
 Write only the theory the exercise needs, immediately before it. The brief names the concepts to
 teach and to revisit; you supply the wording, never the selection.
 
+**Every name a code fragment uses must resolve from the lesson.** Each name must be one of these:
+
+- defined in an earlier fragment of the same lesson;
+- part of a crate, module or standard library that this lesson or an earlier lesson names;
+- already in the learner's tree from an earlier slice;
+- named in the prose next to the fragment as a value the learner supplies, with what it holds, for
+  example "`path` is the file path, `notes/note.md`".
+
+A fragment must not use a name that belongs to a later part or a later slice. A slice the learner
+builds still withholds the assembled solution. This rule covers the fragments, not the solution.
+Before writing the prose file, re-read each fragment and check each of its free names against these
+four sources.
+
 **Pinning tests are written on arrival.** An approved plan holds no pinning test for a slice the
 learner has not reached. When the brief asks for one, write it into the same file's front matter
 under the slice identity the brief names:
