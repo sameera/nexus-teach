@@ -10,6 +10,7 @@ import {
     renderStylesheet,
     renderWorkbook,
     renderWorkbookInto,
+    renderWorkbookOrClear,
     writeWorkbook,
     type LessonSource,
     type RenderedFile,
@@ -243,6 +244,31 @@ describe("the render produces the whole workbook or nothing", () => {
         writeWorkbook(out, renderWorkbook({ lessons: [lesson("a.md", "A", "prose")] }));
 
         expect(fs.readdirSync(out).sort()).toEqual(["a.html", STYLESHEET_NAME, SCRIPT_NAME].sort());
+    });
+});
+
+describe("a render checked before its lessons are written", () => {
+    it("returns the whole workbook and writes nothing, leaving the last render in place", () => {
+        const out = makeDir();
+        renderWorkbookInto(out, { lessons: [lesson("a.md", "A", "prose")] });
+        const before = fs.readFileSync(path.join(out, "a.html"), "utf8");
+
+        const files = renderWorkbookOrClear(out, { lessons: [lesson("a.md", "A", "changed"), lesson("b.md", "B", "new")] });
+
+        expect(files.map((f) => f.name)).toContain("b.html");
+        expect(fs.readdirSync(out).sort()).toEqual(["a.html", STYLESHEET_NAME, SCRIPT_NAME].sort());
+        expect(fs.readFileSync(path.join(out, "a.html"), "utf8")).toBe(before);
+    });
+
+    it("still leaves no page at all behind when it refuses — not even the last render's", () => {
+        const out = makeDir();
+        renderWorkbookInto(out, { lessons: [lesson("a.md", "A", "prose")] });
+
+        expect(() => renderWorkbookOrClear(out, { lessons: [lesson("a.md", "A", "prose"), lesson("b.md", "B", "Result<T, E>")] })).toThrow(
+            LessonRenderError,
+        );
+
+        expect(fs.readdirSync(out)).toEqual([]);
     });
 });
 

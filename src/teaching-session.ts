@@ -78,8 +78,11 @@ import {
     pageNameFor,
     referencePageNameFor,
     renderWorkbookInto,
+    renderWorkbookOrClear,
+    writeWorkbook,
     type Lesson,
     type LessonSource,
+    type RenderedFile,
 } from "./workbook-render.js";
 import {
     lessonsDir,
@@ -894,17 +897,25 @@ export function runTeachingSession(inputs: SessionInputs): SessionResult {
             `page on another concept. Rename one of the two files by hand and re-run.`,
         );
     }
-    if (pinned !== null) {
-        plan = pinned;
-        writeWorkbookPlan(repoRoot, slug, plan);
-    }
+    if (pinned !== null) plan = pinned;
+    // Rendered before anything is written, over the lessons and pages as they will be once it is, so a
+    // render that refuses leaves no lesson, page or test behind to be re-rendered unchanged on the next
+    // run. A refusal still clears the previous render (invariant 15).
+    const pages: RenderedFile[] = renderWorkbookOrClear(
+        workbookRoot(repoRoot, slug),
+        planRenderOptions(repoRoot, slug, plan, {
+            lessons: [{ file: slice.lesson, source: lesson }],
+            references: reference === null ? [] : [reference],
+        }),
+    );
+    if (pinned !== null) writeWorkbookPlan(repoRoot, slug, plan);
     fs.mkdirSync(lessonsDir(repoRoot, slug), { recursive: true });
     fs.writeFileSync(path.join(lessonsDir(repoRoot, slug), slice.lesson), lesson);
     if (reference !== null && earned !== null) {
         fs.mkdirSync(referenceDir(repoRoot, slug), { recursive: true });
         fs.writeFileSync(path.join(referenceDir(repoRoot, slug), referenceFileFor(earned.concept)), reference.source);
     }
-    render(repoRoot, slug, plan);
+    writeWorkbook(workbookRoot(repoRoot, slug), pages);
     const referencePage: string | null =
         earned === null || (!earned.written && reference === null)
             ? null

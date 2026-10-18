@@ -5,7 +5,16 @@ import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { PLAN_FILENAME } from "./workbook-plan";
 import { WORKBOOK_STORE_PATH } from "./workbook-location";
-import { createWorkbook, lessonsDir, readLessons, readWorkbookPlan, workbookRoot, writtenLessonFiles } from "./workbook-store";
+import {
+    createWorkbook,
+    lessonsDir,
+    planRenderOptions,
+    readLessons,
+    readWorkbookPlan,
+    referenceDir,
+    workbookRoot,
+    writtenLessonFiles,
+} from "./workbook-store";
 
 let tmpDirs: string[] = [];
 function makeDir(): string {
@@ -113,6 +122,50 @@ describe("a slice with no lesson yet is a stub the workbook skips", () => {
  * derived diff must withhold whatever a repository has put in the workbook directory — but the
  * placement is this library's behaviour, and it is checked where the code that decides it lives.
  */
+describe("the render a session checks before writing sees the lesson it is about to write", () => {
+    it("renders a pending lesson in its plan place, as though it were written, and writes nothing", () => {
+        const repo = repoWithWorkbook();
+        writePlan(repo, [[460, "01-drift.md"], [461, "02-widget.md"], [462, "03-drill.md"]]);
+        authorLesson(repo, "01-drift.md", "Drift");
+
+        const options = planRenderOptions(repo, "rdl", readWorkbookPlan(repo, "rdl")!, {
+            lessons: [{ file: "02-widget.md", source: "---\ntitle: Widget\n---\n\nNew.\n" }],
+        });
+
+        expect(options.lessons.map((l) => l.file)).toEqual(["01-drift.md", "02-widget.md"]);
+        expect(options.lessons[1].source).toContain("New.");
+        expect(options.stubs).toHaveLength(1);
+        expect(writtenLessonFiles(repo, "rdl")).toEqual(["01-drift.md"]);
+    });
+
+    it("renders a pending lesson in place of the file it would overwrite", () => {
+        const repo = repoWithWorkbook();
+        writePlan(repo, [[460, "01-drift.md"]]);
+        authorLesson(repo, "01-drift.md", "Drift");
+
+        const options = planRenderOptions(repo, "rdl", readWorkbookPlan(repo, "rdl")!, {
+            lessons: [{ file: "01-drift.md", source: "---\ntitle: Drift again\n---\n\nRewritten.\n" }],
+        });
+
+        expect(options.lessons).toHaveLength(1);
+        expect(options.lessons[0].source).toContain("Rewritten.");
+    });
+
+    it("adds a pending reference page beside the written ones, in file order, and writes nothing", () => {
+        const repo = repoWithWorkbook();
+        writePlan(repo, [[460, "01-drift.md"]]);
+        fs.mkdirSync(referenceDir(repo, "rdl"), { recursive: true });
+        fs.writeFileSync(path.join(referenceDir(repo, "rdl"), "pinned-state.md"), "---\nconcept: pinned state\n---\n\nWritten.\n");
+
+        const options = planRenderOptions(repo, "rdl", readWorkbookPlan(repo, "rdl")!, {
+            references: [{ file: "reference/drift.md", source: "---\nconcept: drift\n---\n\nPending.\n" }],
+        });
+
+        expect(options.references?.map((r) => r.file)).toEqual(["reference/drift.md", "reference/pinned-state.md"]);
+        expect(fs.readdirSync(referenceDir(repo, "rdl"))).toEqual(["pinned-state.md"]);
+    });
+});
+
 describe("a workbook is created as a committed folder outside the queue", () => {
     function initRepo(): string {
         const dir = makeDir();

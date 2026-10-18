@@ -18,7 +18,7 @@ import {
     type LessonSource,
     type RenderedFile,
 } from "./workbook-render";
-import { createWorkbook, planRenderOptions, readWorkbookPlan, workbookRoot } from "./workbook-store";
+import { createWorkbook, lessonsDir, planRenderOptions, readWorkbookPlan, workbookRoot } from "./workbook-store";
 
 let tmpDirs: string[] = [];
 function makeDir(): string {
@@ -229,6 +229,39 @@ describe("a concept's second drill earns it a reference page", () => {
         expect(() => teach(repo, proseFor(brief, true))).toThrow(/drift/);
 
         expect(fs.readFileSync(clash, "utf8")).toContain("Another page.");
+    });
+
+    it("writes no lesson either when the reference page collides, and leaves the plan as it was", () => {
+        const repo = makeRepo();
+        fourLessonsIn(repo);
+        const clash = path.join(workbookRoot(repo, "rdl"), "reference", "drift.md");
+        fs.mkdirSync(path.dirname(clash), { recursive: true });
+        fs.writeFileSync(clash, "---\nconcept: Drift!\n---\n\nAnother page.\n");
+        const plan = fs.readFileSync(path.join(workbookRoot(repo, "rdl"), PLAN_FILENAME), "utf8");
+        const brief = briefOf(teach(repo));
+
+        expect(() => teach(repo, proseFor(brief, true))).toThrow(/drift/);
+
+        expect(fs.existsSync(path.join(lessonsDir(repo, "rdl"), "05-reference.md"))).toBe(false);
+        expect(fs.readdirSync(path.dirname(clash))).toEqual(["drift.md"]);
+        expect(fs.readFileSync(path.join(workbookRoot(repo, "rdl"), PLAN_FILENAME), "utf8")).toBe(plan);
+    });
+
+    it("writes no reference page when the render refuses the lesson it came with, and writes both once corrected", () => {
+        const repo = makeRepo();
+        fourLessonsIn(repo);
+        const brief = briefOf(teach(repo));
+
+        expect(() => teach(repo, { ...proseFor(brief, true), theory: "A Result<T, E> holds a value." })).toThrow(/markup/);
+
+        expect(fs.existsSync(path.join(workbookRoot(repo, "rdl"), "reference"))).toBe(false);
+        expect(fs.existsSync(path.join(lessonsDir(repo, "rdl"), "05-reference.md"))).toBe(false);
+
+        const written = teach(repo, proseFor(brief, true));
+
+        expect(written.outcome.kind).toBe("written");
+        expect(fs.readdirSync(path.join(workbookRoot(repo, "rdl"), "reference"))).toEqual(["drift.md"]);
+        expect(readPage(page(repo, "05-reference.html")).text).toContain("The theory half.");
     });
 
     it("stops naming the concept once its page is written", () => {

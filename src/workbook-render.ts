@@ -769,14 +769,22 @@ export function writeWorkbook(outDir: string, files: readonly RenderedFile[]): s
  * that failed is reported, so the fix is to correct the lesson and render again.
  */
 export function renderWorkbookInto(outDir: string, options: RenderOptions): string[] {
-    let files: RenderedFile[];
+    return writeWorkbook(outDir, renderWorkbookOrClear(outDir, options));
+}
+
+/**
+ * The refusal half of `renderWorkbookInto`, for a caller that has authored files of its own to write
+ * once the render is known to succeed: the workbook's bytes, written nowhere, or a refusal that has
+ * already cleared the folder's previous render (invariant 15). The caller writes the files with
+ * `writeWorkbook` once its own writes are done.
+ */
+export function renderWorkbookOrClear(outDir: string, options: RenderOptions): RenderedFile[] {
     try {
-        files = renderWorkbook(options);
+        return renderWorkbook(options);
     } catch (error) {
         clearWorkbookOutput(outDir);
         throw error;
     }
-    return writeWorkbook(outDir, files);
 }
 
 /** One committed file that is not what the lessons render to, and how it fails to match. */

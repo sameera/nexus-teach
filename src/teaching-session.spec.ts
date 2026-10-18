@@ -65,10 +65,12 @@ function planText(slices: readonly SliceSpec[] = SLICES, control: boolean = fals
             `    builds: ${slice.builds}`,
             `    branch: feat/${slice.story}-slice`,
             `    concepts: [${slice.concepts.join(", ")}]`,
-            "    pinning_test:",
-            `      file: ${slice.test}`,
-            "      text: |",
-            `        it("pins #${slice.story}", () => {});`,
+        );
+        // An empty test is a slice whose pinning test is written when the learner arrives at it.
+        if (slice.test !== "") {
+            lines.push("    pinning_test:", `      file: ${slice.test}`, "      text: |", `        it("pins #${slice.story}", () => {});`);
+        }
+        lines.push(
             "    pinned:",
             `      title: Story ${slice.story} teaches something`,
             `      body: As a learner, I want slice ${slice.story}.`,
@@ -260,6 +262,66 @@ describe("a workbook opened at its first lesson holds exactly one written lesson
 
         expect(next.outcome.kind).toBe("written");
         expect(fs.readdirSync(lessonsDir(repo, "rdl")).sort()).toEqual(["01-drift.md", "02-widget.md"]);
+    });
+});
+
+describe("a lesson the render refuses is not written, so corrected prose succeeds on the next run", () => {
+    /** The second slice's pinning test is written when the learner arrives at it, so the plan changes too. */
+    const UNPINNED: SliceSpec[] = SLICES.map((slice) => (slice.story === 461 ? { ...slice, test: "" } : slice));
+    const MARKUP: string = "A Result<T, E> holds a value or an error.";
+    const CORRECTED: string = "A `Result` holds a value or an error.";
+
+    /** The first lesson written and finished, and the brief for the second, which needs its pinning test. */
+    function atSecondLesson(): { repo: string; brief: LessonBrief } {
+        const repo = makeRepo(UNPINNED);
+        teachOne(repo);
+        finish(repo, "tests/drift.spec.ts");
+        const briefed = teach(repo).result;
+        if (briefed.outcome.kind !== "brief") throw new Error(`expected a brief, got ${briefed.outcome.kind}`);
+        return { repo, brief: briefed.outcome.brief };
+    }
+
+    function proseWith(brief: LessonBrief, theory: string): AuthoredProse {
+        return {
+            ...proseFor(brief),
+            theory,
+            pinningTests: [{ slice: brief.writeTest?.slice as string, file: "tests/widget.spec.ts", text: "it('pins #461', () => {});\n" }],
+        };
+    }
+
+    it("leaves the lessons and the plan exactly as they were before the run", () => {
+        const { repo, brief } = atSecondLesson();
+        expect(brief.writeTest).toBeDefined();
+        const plan = fs.readFileSync(path.join(workbookRoot(repo, "rdl"), PLAN_FILENAME), "utf8");
+        const first = fs.readFileSync(path.join(lessonsDir(repo, "rdl"), "01-drift.md"), "utf8");
+
+        expect(() => teach(repo, { prose: proseWith(brief, MARKUP) })).toThrow(/markup/);
+
+        expect(fs.readdirSync(lessonsDir(repo, "rdl"))).toEqual(["01-drift.md"]);
+        expect(fs.readFileSync(path.join(lessonsDir(repo, "rdl"), "01-drift.md"), "utf8")).toBe(first);
+        expect(fs.readFileSync(path.join(workbookRoot(repo, "rdl"), PLAN_FILENAME), "utf8")).toBe(plan);
+    });
+
+    it("still leaves no rendered page behind, not even the last render's", () => {
+        const { repo, brief } = atSecondLesson();
+        expect(fs.existsSync(path.join(workbookRoot(repo, "rdl"), "01-drift.html"))).toBe(true);
+
+        expect(() => teach(repo, { prose: proseWith(brief, MARKUP) })).toThrow(/markup/);
+
+        expect(fs.readdirSync(workbookRoot(repo, "rdl")).filter((name) => /\.(html|css|js)$/.test(name))).toEqual([]);
+    });
+
+    it("writes and renders the corrected prose on the next run, with nothing to clean up by hand", () => {
+        const { repo, brief } = atSecondLesson();
+        expect(() => teach(repo, { prose: proseWith(brief, MARKUP) })).toThrow(/markup/);
+
+        const again = teach(repo, { prose: proseWith(brief, CORRECTED) }).result;
+
+        expect(again.outcome.kind).toBe("written");
+        expect(fs.readFileSync(path.join(lessonsDir(repo, "rdl"), "02-widget.md"), "utf8")).toContain(CORRECTED);
+        const page = readPage(fs.readFileSync(path.join(workbookRoot(repo, "rdl"), "02-widget.html"), "utf8"));
+        expect(page.text).toContain("holds a value or an error");
+        expect(fs.existsSync(path.join(workbookRoot(repo, "rdl"), "01-drift.html"))).toBe(true);
     });
 });
 
