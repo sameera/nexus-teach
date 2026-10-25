@@ -29,6 +29,9 @@ export async function buildBundle(entryAbsPath: string): Promise<BuiltBundle> {
         target: "node22",
         write: false,
         plugins: [nexusLibraryPlugin(path.dirname(entryAbsPath))],
+        // Nexus sources may sit outside this repo (a `link:` override), where their bare imports
+        // such as `yaml` cannot walk up to this repo's own install. Fall back to it.
+        nodePaths: [path.join(path.dirname(entryAbsPath), "..", "node_modules")],
         // The shebang makes the bundle directly executable, which is what a package manager relies
         // on when it links the declared binary onto the caller's path. It lives in the banner rather
         // than being prepended when the release tree is staged, so the bytes the fingerprint records
