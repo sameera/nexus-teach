@@ -120,6 +120,15 @@ function reads(state: DecisionRecordState | null): RecordReader {
     return (): RecordLookup => ({ kind: "read", record: state });
 }
 
+/** The epic issue as `gh issue view --json ...,labels` returns it, carrying these labels. */
+function epicIssue(labels: readonly string[]): RunResult {
+    return {
+        status: 0,
+        stdout: JSON.stringify({ number: EPIC, title: "The learner-planned epic", body: "", state: "OPEN", stateReason: "", labels: labels.map((name) => ({ name })) }),
+        stderr: "",
+    };
+}
+
 const NO_RECORD: RecordReader = reads(null);
 const UNAPPROVED: RecordReader = reads({ number: 100, approved: false, body: RECORD_BODY });
 const APPROVED: RecordReader = reads({ number: 100, approved: true, body: RECORD_BODY });
@@ -335,9 +344,10 @@ describe("the command line treats the record verdict as a normal end (story #97)
         fs.writeFileSync(out, `---\nepic: "A learner-planned epic"\nlink: "#${EPIC}"\n---\n\n# Epic\n`);
     }
 
-    /** The command line's own wiring: `gh` answers for a story, and for nothing else. */
+    /** The command line's own wiring: `gh` answers for the epic, which warrants a design, and for a story. */
     function ghRunner(): Runner {
         return (cmd, args, opts): RunResult => {
+            if (cmd === "gh" && args[0] === "issue" && args[2] === String(EPIC)) return epicIssue(["epic", "needs-design"]);
             if (cmd === "gh" && args[0] === "issue") {
                 const story: number = Number(args[2]);
                 const live: LiveStory = LIVE[story];
@@ -591,9 +601,10 @@ describe("approving the record pins the sources, and the next session teaches fr
         );
     }
 
-    /** The whole checkout as the command line meets it: `gh` answers for stories and for the record. */
+    /** The whole checkout as the command line meets it: `gh` answers for the epic, its stories and its record. */
     function cliRunner(approved: boolean): Runner {
         return (cmd, args, opts): RunResult => {
+            if (cmd === "gh" && args[0] === "issue" && args[2] === String(EPIC)) return epicIssue(["epic", "needs-design"]);
             if (cmd === "gh" && args[0] === "issue") {
                 const live: LiveStory = LIVE[Number(args[2])];
                 return { status: 0, stdout: JSON.stringify({ title: live.title, body: live.body, closedAt: null }), stderr: "" };
@@ -734,5 +745,142 @@ describe("approving the record pins the sources, and the next session teaches fr
         if (result.outcome.kind !== "brief") throw new Error("expected the lesson brief");
         expect(result.outcome.brief.sources).toBeUndefined();
         expect(result.outcome.report).not.toContain("The theory is written from the decision record's section");
+    });
+});
+
+describe("an epic that declares no design owes no record", () => {
+    /**
+     * Nexus marks an epic that warrants a decision record with the needs-design label at filing; an S or
+     * XS epic is filed without it, and /nxs.decision-record treats "no label, no record" as an epic that
+     * legitimately proceeds without one. The gate reads that same declaration instead of its own rule.
+     */
+    const NOT_OWED: RecordReader = () => ({ kind: "not-owed", label: "needs-design" });
+
+    /** The epic as this checkout resolved it, carrying no record. */
+    function resolveEpicWithoutRecord(repo: string, record: number | null = null): void {
+        const out: string = path.join(repo, ".nexus", "tmp", `epic-${EPIC}`, "epic.md");
+        fs.mkdirSync(path.dirname(out), { recursive: true });
+        fs.writeFileSync(
+            out,
+            `---\nepic: "An S epic"\ncomplexity: S\nlink: "#${EPIC}"\n` + (record === null ? "" : `record: "#${record}"\n`) + "---\n\n# Epic\n",
+        );
+    }
+
+    /** `gh` as the checkout meets it: the epic carries these labels, a story answers live, and every call is kept. */
+    function labelled(labels: readonly string[] | "unreachable", calls: string[][] = []): Runner {
+        return (cmd, args, opts): RunResult => {
+            if (cmd === "gh") calls.push(args);
+            if (cmd === "gh" && args[0] === "issue" && args[2] === String(EPIC)) {
+                return labels === "unreachable" ? { status: 1, stdout: "", stderr: "error connecting to api.github.com" } : epicIssue(labels);
+            }
+            if (cmd === "gh" && args[0] === "issue") {
+                const live: LiveStory = LIVE[Number(args[2])];
+                return { status: 0, stdout: JSON.stringify({ title: live.title, body: live.body, closedAt: null }), stderr: "" };
+            }
+            if (cmd === "gh" && args[0] === "api") {
+                return { status: 0, stdout: JSON.stringify({ body: RECORD_BODY, state: "open", state_reason: null }), stderr: "" };
+            }
+            return runner()(cmd, args, opts);
+        };
+    }
+
+    it("teaches a slice with no sources whose epic owes no record, and says why nothing was owed", () => {
+        const repo = makeRepo();
+
+        const result = teach(repo, { readRecord: NOT_OWED });
+
+        expect(result.outcome.kind).toBe("brief");
+        const notes: string = result.notes.join(" ");
+        expect(notes).toContain(`epic #${EPIC} carries no 'needs-design' label`);
+        expect(notes).toContain("owes no decision record");
+        expect(notes).toContain(`nexus epic-resolve --epic ${EPIC}`);
+    });
+
+    it("writes no record brief for an epic that owes no record", () => {
+        const repo = makeRepo();
+
+        teach(repo, { readRecord: NOT_OWED });
+
+        expect(listLearnerRecords(repo, "record-briefs")).toEqual([]);
+    });
+
+    it("reads an epic without the label and without a record as owing none", () => {
+        const repo = makeRepo();
+        resolveEpicWithoutRecord(repo);
+
+        expect(lookupRecord(repo, EPIC, labelled(["epic"]))).toEqual({ kind: "not-owed", label: "needs-design" });
+    });
+
+    it("still reads an epic that carries the label and has no record as owing one", () => {
+        const repo = makeRepo();
+        resolveEpicWithoutRecord(repo);
+
+        expect(lookupRecord(repo, EPIC, labelled(["epic", "needs-design"]))).toEqual({ kind: "read", record: null });
+    });
+
+    it("reads the label by the name the repository declares, not by the built-in name", () => {
+        const repo = makeRepo();
+        resolveEpicWithoutRecord(repo);
+        fs.mkdirSync(path.join(repo, ".nexus", "config"), { recursive: true });
+        fs.writeFileSync(path.join(repo, ".nexus", "config", "settings.yml"), "github:\n  needs-design-label: design-me\n");
+
+        expect(lookupRecord(repo, EPIC, labelled(["needs-design"]))).toEqual({ kind: "not-owed", label: "design-me" });
+        expect(lookupRecord(repo, EPIC, labelled(["design-me"]))).toEqual({ kind: "read", record: null });
+    });
+
+    it("answers unreadable, never not-owed, when the epic's labels cannot be read", () => {
+        const repo = makeRepo();
+        resolveEpicWithoutRecord(repo);
+
+        const lookup: RecordLookup = lookupRecord(repo, EPIC, labelled("unreachable"));
+
+        expect(lookup.kind).toBe("unreadable");
+        if (lookup.kind !== "unreadable") throw new Error("expected an unreadable lookup");
+        expect(lookup.detail).toContain(`epic #${EPIC}`);
+    });
+
+    it("never reads the epic's labels when the checkout finds a record, since filing one moves the label off", () => {
+        const repo = makeRepo();
+        resolveEpicWithoutRecord(repo, 100);
+        const calls: string[][] = [];
+
+        const lookup: RecordLookup = lookupRecord(repo, EPIC, labelled(["epic"], calls));
+
+        expect(lookup).toEqual({ kind: "read", record: { number: 100, approved: false, body: RECORD_BODY } });
+        expect(calls.filter((args) => args[0] === "issue" && args[2] === String(EPIC))).toEqual([]);
+    });
+
+    it("teaches through the command line, exits zero and writes no record brief", () => {
+        const repo = makeRepo();
+        resolveEpicWithoutRecord(repo);
+        const out: string[] = [];
+        const err: string[] = [];
+        const io: WorkbookCliIo = { cwd: repo, stdout: (line) => out.push(line), stderr: (line) => err.push(line) };
+
+        const code: number = runWorkbookCli(["teach", "rdl", "--root", repo], io, labelled(["epic"]));
+
+        expect(code).toBe(0);
+        expect(err).toEqual([]);
+        expect(out.join("\n")).not.toContain("No lesson is written");
+        expect(out.join("\n")).toContain("owes no decision record");
+        expect(listLearnerRecords(repo, "record-briefs")).toEqual([]);
+    });
+
+    it("pins nothing, exits zero and says there is nothing to pin, when the epic owes no record", () => {
+        const repo = makeRepo();
+        resolveEpicWithoutRecord(repo);
+        const planFile: string = path.join(workbookRoot(repo, "rdl"), PLAN_FILENAME);
+        const before: string = fs.readFileSync(planFile, "utf8");
+        const out: string[] = [];
+        const err: string[] = [];
+        const io: WorkbookCliIo = { cwd: repo, stdout: (line) => out.push(line), stderr: (line) => err.push(line) };
+
+        const code: number = runWorkbookCli(["pin", "rdl", "--root", repo, "--epic", String(EPIC)], io, labelled(["epic"]));
+
+        expect(code).toBe(0);
+        expect(err).toEqual([]);
+        expect(out.join("\n")).toContain("owes no decision record");
+        expect(out.join("\n")).toContain("nothing to pin");
+        expect(fs.readFileSync(planFile, "utf8")).toBe(before);
     });
 });

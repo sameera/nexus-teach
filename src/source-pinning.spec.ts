@@ -113,6 +113,9 @@ describe("a stub gains its pinned sources once its epic's decision record is app
     it("pins nothing and raises no error when the epic has no decision record yet", () => {
         const p: Planned = approvedWithRecord("closed");
         fs.writeFileSync(path.join(p.repo, ".nexus", "tmp", "epic-100", "epic.md"), `---\nepic: "Pin the plan"\nlink: "#100"\n---\n`);
+        // An epic that warrants a design and has not had its record filed yet.
+        p.fake.live[100] = { title: "Pin the plan", body: "", closed: false };
+        p.fake.labels = { 100: ["epic", "needs-design"] };
         const { code } = pin(p, 100);
         expect(code).toBe(0);
         expect(slice(p, "story-11").sources).toBeUndefined();

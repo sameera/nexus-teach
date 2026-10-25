@@ -34,11 +34,14 @@ import { sliceId, sliceLabel, type PlanSliceRecord, type WorkbookPlan } from "./
 
 /**
  * What this checkout finds about one epic's decision record. `read` carries the record itself, or
- * null for an epic that has none; `unreadable` is the answer the checkout could not reach, which is
- * never a stop.
+ * null for an epic that has none; `not-owed` is an epic with no record that never declared it needs
+ * one — the needs-design label, named by `label`, is absent from its issue, which is how Nexus files
+ * an S or XS epic and how /nxs.decision-record leaves one it concluded needs no record; `unreadable`
+ * is the answer the checkout could not reach, which is never a stop.
  */
 export type RecordLookup =
     | { kind: "read"; record: DecisionRecordState | null }
+    | { kind: "not-owed"; label: string }
     | { kind: "unreadable"; detail: string };
 
 /** Reads one epic's decision record. The same seam the story reader uses: the session never fetches. */
@@ -101,6 +104,18 @@ export function recordOwed(plan: WorkbookPlan, slice: PlanSliceRecord, read: Rec
             note:
                 `whether epic #${epic} owes a decision record could not be checked — ${lookup.detail} — so ` +
                 `the lesson is written as it was before.`,
+        };
+    }
+    if (lookup.kind === "not-owed") {
+        // The epic declares no design: nothing will ever be pinned, so waiting on a record would stop
+        // this slice for good. The re-resolve covers a record filed since this checkout resolved the
+        // epic, since filing one also moves the label off.
+        return {
+            kind: "teach",
+            note:
+                `epic #${epic} carries no '${lookup.label}' label and this checkout finds no decision record ` +
+                `for it, so it owes no decision record and ${sliceLabel(slice)}'s lesson is written from the ` +
+                `repository. If a record was filed since, re-resolve with 'nexus epic-resolve --epic ${epic}'.`,
         };
     }
 

@@ -82,6 +82,7 @@ import { rebuildDraft, refuseUncleanCoverage, renderGateDigest, type CoverageRef
 import { applyDeclaration, rewritePlan, type Declaration, type DeclarationResult, type UnplannedConcepts } from "./plan-rewrite.js";
 import { resolveEpic, type ResolveEpicResult } from "@nexus/epic-resolve/resolve";
 import { fetchIssue } from "@nexus/epic-resolve/gh";
+import { layersAt, resolveKeyFromLayers } from "@nexus/delivery-config/resolve";
 import { defaultOutPath } from "@nexus/epic-resolve/write";
 import { parseAuthoredSources, pinSources, type AuthoredSources, type DecisionRecordState, type PinningResult } from "./source-pinning.js";
 import { resolveWorkspace } from "@nexus/workspace/resolve";
@@ -1014,6 +1015,11 @@ function changeMark(repoRoot: string, roadmap: Roadmap, draft: PlanDraft, flags:
  *
  * One lookup serves both callers: the verb that pins sources, and the seam the teaching session asks
  * its record question through. Two lookups would be two answers about one epic (record #100).
+ *
+ * An epic with no record is asked one more question, live: does its issue carry the needs-design
+ * label? Nexus applies it at filing to every epic that warrants a record and leaves it off S and XS
+ * epics, so its absence means no record will ever come. The label is read only when no record is
+ * found, because filing a record moves the epic off the label.
  */
 export function lookupRecord(repoRoot: string, epic: number, run: Runner): RecordLookup {
     const resolved = resolveWorkspace(repoRoot);
@@ -1025,12 +1031,22 @@ export function lookupRecord(repoRoot: string, epic: number, run: Runner): Recor
     const front: RegExpMatchArray | null = fs.readFileSync(materialized, "utf8").match(/^---\n([\s\S]*?)\n---/);
     const meta: Record<string, unknown> = ((front === null ? null : parse(front[1])) as Record<string, unknown> | null) ?? {};
     const number: number = Number(String(meta["record"] ?? "").replace(/^#/, ""));
-    if (!Number.isInteger(number) || number <= 0) return { kind: "read", record: null };
+    if (!Number.isInteger(number) || number <= 0) return designDeclared(pipelineRoot, epic, run);
     const fetched: FetchRecordResult = fetchRecord(run, pipelineRoot, number);
     if (!fetched.ok) {
         return { kind: "unreadable", detail: `decision record #${number} for epic #${epic} could not be read, so its approval is unknown` };
     }
     return { kind: "read", record: { number, approved: fetched.record.approved, body: fetched.record.body } };
+}
+
+/** An epic with no record: owed one when its issue carries the needs-design label, under the name the repository declares. */
+function designDeclared(pipelineRoot: string, epic: number, run: Runner): RecordLookup {
+    const label: string = resolveKeyFromLayers(layersAt(pipelineRoot), "needs-design-label") ?? "needs-design";
+    const issue = fetchIssue(run, pipelineRoot, epic, "epic-not-found");
+    if (!issue.ok) {
+        return { kind: "unreadable", detail: `epic #${epic}'s labels could not be read, so whether it warrants a decision record is unknown` };
+    }
+    return issue.issue.labels.includes(label) ? { kind: "read", record: null } : { kind: "not-owed", label };
 }
 
 /**
@@ -1042,14 +1058,21 @@ function ghRecordReader(repoRoot: string, run: Runner): RecordReader {
     return (epic: number): RecordLookup => lookupRecord(repoRoot, epic, run);
 }
 
-/** The same lookup, reported the way the pinning verb reports it: a refusal that pinned nothing. */
-function resolvedRecord(repoRoot: string, epic: number, io: WorkbookCliIo, run: Runner): { found: boolean; record: DecisionRecordState | null } {
+/**
+ * The same lookup, reported the way the pinning verb reports it. An unreadable record is a refusal; an
+ * epic that owes no record is a normal end, since there is nothing to pin and nothing went wrong.
+ */
+function resolvedRecord(repoRoot: string, epic: number, io: WorkbookCliIo, run: Runner): { exit: number } | { record: DecisionRecordState | null } {
     const lookup: RecordLookup = lookupRecord(repoRoot, epic, run);
     if (lookup.kind === "unreadable") {
         io.stderr(`${lookup.detail} — nothing was pinned.`);
-        return { found: false, record: null };
+        return { exit: 1 };
     }
-    return { found: true, record: lookup.record };
+    if (lookup.kind === "not-owed") {
+        io.stdout(`epic #${epic} carries no '${lookup.label}' label and has no decision record, so it owes no decision record and there is nothing to pin.`);
+        return { exit: 0 };
+    }
+    return { record: lookup.record };
 }
 
 /**
@@ -1068,8 +1091,9 @@ function runPin(repoRoot: string, slug: string, flags: Flags, io: WorkbookCliIo,
         io.stderr(`the workbook ${slug} has no approved plan, so there is no slice to pin sources for.`);
         return 1;
     }
-    const { found, record } = resolvedRecord(repoRoot, epic, io, run);
-    if (!found) return 1;
+    const resolved = resolvedRecord(repoRoot, epic, io, run);
+    if ("exit" in resolved) return resolved.exit;
+    const { record } = resolved;
     if (record !== null && record.approved && flags.sources === undefined) {
         io.stderr(`decision record #${record.number} is approved, so workbook pin needs --sources <file> naming each story's sources.`);
         return 2;

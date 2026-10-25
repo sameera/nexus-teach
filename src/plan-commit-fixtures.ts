@@ -80,6 +80,8 @@ export interface Fake {
     calls: string[][];
     /** GitHub's close reason for a closed issue, when it is not `completed`. */
     reasons?: Record<number, string>;
+    /** An issue's label names, when a caller reads them. */
+    labels?: Record<number, string[]>;
 }
 
 export function liveFromRoadmap(roadmap: Roadmap = ROADMAP): Record<number, LiveStory | null> {
@@ -94,7 +96,8 @@ export function ghRunner(fake: Fake): Runner {
         if (cmd === "gh" && args[0] === "issue" && args[1] === "view") {
             const live: LiveStory | null | undefined = fake.live[Number(args[2])];
             if (live === null || live === undefined) return { status: 1, stdout: "", stderr: "not found" };
-            return { status: 0, stdout: JSON.stringify({ title: live.title, body: live.body, closedAt: live.closed ? "2026-09-01T00:00:00Z" : null }), stderr: "" };
+            const labels: { name: string }[] = (fake.labels?.[Number(args[2])] ?? []).map((name) => ({ name }));
+            return { status: 0, stdout: JSON.stringify({ title: live.title, body: live.body, closedAt: live.closed ? "2026-09-01T00:00:00Z" : null, labels }), stderr: "" };
         }
         const issuePath: RegExpMatchArray | null = cmd === "gh" && args[0] === "api" ? String(args[1]).match(/\/issues\/(\d+)$/) : null;
         if (issuePath !== null) {
