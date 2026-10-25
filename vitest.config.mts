@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import { defineConfig } from "vitest/config";
 import { NEXUS_LIBRARY_ALIAS } from "./src/nexus-library-alias.mjs";
 
@@ -8,7 +9,10 @@ export default defineConfig({
         // as source by the `@sameeraperera/nexus` package (epic #677, goal #690). One rule maps
         // every `@nexus/<library>/<module>` specifier onto that published tree, so no import in the
         // moved code had to change and nothing here keeps a table of subpaths.
-        alias: [NEXUS_LIBRARY_ALIAS],
+        //
+        // A `link:` override puts those sources outside this repo, where their bare `yaml` import
+        // cannot reach this repo's install; pin it here.
+        alias: [NEXUS_LIBRARY_ALIAS, { find: /^yaml$/, replacement: path.join(import.meta.dirname, "node_modules", "yaml") }],
     },
     test: {
         name: "nexus-teach",
