@@ -60,6 +60,10 @@ nxsx workbook teach <name> --prose <file>
 Write only the theory the exercise needs, immediately before it. The brief names the concepts to
 teach and to revisit; you supply the wording, never the selection.
 
+**A drill's question and answer are lesson markdown.** So is each revisited concept's. A fenced
+block shows as code, and `*`, `-`, `#` or `>` in plain text can become emphasis, a list, a heading
+or a quote. Put code, and any expression such as `2*3*4`, in a code span or a fenced block.
+
 **Every name a code fragment uses must resolve from the lesson.** Each name must be one of these:
 
 - defined in an earlier fragment of the same lesson;

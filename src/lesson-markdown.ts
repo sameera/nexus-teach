@@ -12,15 +12,39 @@ export function closesFence(line: string, fence: string): boolean {
     return run !== null && run[1].length >= fence.length;
 }
 
-/** Inline prose: emphasis, code spans and links, over already-escaped text. */
+/**
+ * The text with the content of every fenced block taken out and the fence lines kept, closed by
+ * the same rule the renderer uses. That content is escaped and shown as code, so the markup check
+ * has no reason to read it.
+ */
+export function withoutFenceContent(text: string): string {
+    const lines: string[] = text.split("\n");
+    const kept: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+        kept.push(lines[i]);
+        const opening: RegExpMatchArray | null = lines[i].match(/^(`{3,})(.*)$/);
+        if (opening === null) continue;
+        for (i++; i < lines.length && !closesFence(lines[i], opening[1]); i++);
+        if (i < lines.length) kept.push(lines[i]);
+    }
+    return kept.join("\n");
+}
+
+/**
+ * Inline prose: emphasis, code spans and links, over already-escaped text. A code span is set
+ * aside before the other rules run, so `2*3*4` or `[a](b)` inside one is shown as written.
+ */
 function renderInline(text: string): string {
-    let out: string = escapeText(text);
-    out = out.replace(/`([^`]+)`/g, (_m, code: string) => `<code>${code}</code>`);
+    const spans: string[] = [];
+    let out: string = escapeText(text).replace(/`([^`]+)`/g, (_m, code: string) => {
+        spans.push(`<code>${code}</code>`);
+        return `\uE000${spans.length - 1}\uE000`;
+    });
     out = out.replace(/\*\*([^*]+)\*\*/g, (_m, s: string) => `<strong>${s}</strong>`);
     out = out.replace(/(^|[^*])\*([^*]+)\*/g, (_m, lead: string, s: string) => `${lead}<em>${s}</em>`);
     out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, label: string, href: string) =>
         `<a href="${href}">${label}</a>`);
-    return out;
+    return out.replace(/\uE000(\d+)\uE000/g, (_m, index: string) => spans[Number(index)]);
 }
 
 /**
