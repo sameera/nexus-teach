@@ -12,9 +12,12 @@
  * the control, so it uses the widget seam's `lead` region rather than the reveal button's summary
  * label — a `<button>` is itself excluded from print, so content carried only by its label would
  * disappear from a printed, untouched page.
+ *
+ * The question and the answer are lesson prose, so they render through the lesson's markdown
+ * subset: a question that quotes a command shows it as a code block, not as backticks.
  */
 
-import { escapeText } from "./html-escape.js";
+import { renderMarkdown } from "./lesson-markdown.js";
 import { type WidgetComponent } from "./workbook-widgets.js";
 
 /** The name a lesson declares to use this component. */
@@ -25,7 +28,7 @@ function textOf(data: Record<string, unknown>, field: string): string {
 }
 
 export const PREDICT_THEN_REVEAL: WidgetComponent = {
-    lead: (data) => `<p class="widget-question">${escapeText(textOf(data, "question"))}</p>`,
+    lead: (data) => `<div class="widget-question">\n${renderMarkdown(textOf(data, "question"))}\n</div>`,
     summary: () => "Reveal the answer",
-    render: (data) => `<p class="widget-answer">${escapeText(textOf(data, "answer"))}</p>`,
+    render: (data) => `<div class="widget-answer">\n${renderMarkdown(textOf(data, "answer"))}\n</div>`,
 };
