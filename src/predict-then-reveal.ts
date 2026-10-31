@@ -14,7 +14,8 @@
  * disappear from a printed, untouched page.
  *
  * The question and the answer are lesson prose, so they render through the lesson's markdown
- * subset: a question that quotes a command shows it as a code block, not as backticks.
+ * subset: a question that quotes a command shows it as a code block, not as backticks. They are
+ * declared as markdown fields, so code in a fenced block of either can read like markup.
  */
 
 import { renderMarkdown } from "./lesson-markdown.js";
@@ -31,4 +32,5 @@ export const PREDICT_THEN_REVEAL: WidgetComponent = {
     lead: (data) => `<div class="widget-question">\n${renderMarkdown(textOf(data, "question"))}\n</div>`,
     summary: () => "Reveal the answer",
     render: (data) => `<div class="widget-answer">\n${renderMarkdown(textOf(data, "answer"))}\n</div>`,
+    markdownFields: ["question", "answer"],
 };

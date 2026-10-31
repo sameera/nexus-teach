@@ -86,6 +86,18 @@ describe("a lesson's markdown and front matter become a page", () => {
         expect(page.code).toContain("a > b");
         expect(page.code).toContain("a & b");
     });
+
+    it("shows a code span's asterisks and brackets as written, rather than as emphasis or a link", () => {
+        const source = lesson("spans.md", "Spans", "Compute `2*3*4` and call `[a](b)`, with *real* emphasis.");
+
+        const file = pageOf(renderWorkbook({ lessons: [source] }), "spans.html");
+        const page = readPage(file);
+
+        expect(page.code).toContain("2*3*4");
+        expect(page.code).toContain("[a](b)");
+        expect(page.emphasised).toEqual(["real"]);
+        expect(page.links).toEqual([]);
+    });
 });
 
 describe("the channel through which markup could reach a page is closed", () => {

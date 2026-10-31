@@ -79,6 +79,46 @@ describe("predict-then-reveal is the first component in the shared library", () 
         expect(file).not.toContain("```");
     });
 
+    it("renders code that reads like markup inside a fenced block of the question or the answer", () => {
+        const declaration: string = [
+            "component: predict-then-reveal",
+            "data:",
+            '  question: "Given:\\n\\n```rust\\nfn f<T>(x: T) -> Vec<T>\\n```\\n\\nWhat compiles?\\n"',
+            '  answer: "This does:\\n\\n```rust\\nlet v: Vec<u8> = f(1);\\n```\\n"',
+        ].join("\n");
+        const file = renderWorkbook({
+            lessons: [lessonWith(declaration)],
+            widgets: { [PREDICT_THEN_REVEAL_COMPONENT]: PREDICT_THEN_REVEAL },
+        }).find((f) => f.name === "the-drift-check.html")!.contents;
+        expect(file).toContain("<pre><code>fn f&lt;T&gt;(x: T) -&gt; Vec&lt;T&gt;\n</code></pre>");
+        expect(file).toContain("<pre><code>let v: Vec&lt;u8&gt; = f(1);\n</code></pre>");
+    });
+
+    it("still refuses markup in the prose of the question or the answer, outside a fenced block", () => {
+        for (const field of ["question", "answer"]) {
+            const declaration: string = [
+                "component: predict-then-reveal",
+                "data:",
+                `  ${field}: "Is <b>this</b> bold?\\n\\n\`\`\`text\\nplain\\n\`\`\`\\n"`,
+                `  ${field === "question" ? "answer" : "question"}: plain`,
+            ].join("\n");
+            expect(() =>
+                renderWorkbook({
+                    lessons: [lessonWith(declaration)],
+                    widgets: { [PREDICT_THEN_REVEAL_COMPONENT]: PREDICT_THEN_REVEAL },
+                }),
+            ).toThrow(/markup-in-lesson/);
+        }
+    });
+
+    it("shows an answer written as a code span exactly, so asterisks in it are not emphasis", () => {
+        const page = pageFor(
+            ["component: predict-then-reveal", "data:", "  question: what is it?", '  answer: "`2*3*4 = 24`"'].join("\n"),
+        );
+        expect(page.text).toContain("2*3*4 = 24");
+        expect(page.emphasised).toEqual([]);
+    });
+
     it("escapes the question and the answer while rendering them", () => {
         const html: string = PREDICT_THEN_REVEAL.lead!({ question: "is 1 < 2 & 3 > 2?" });
         expect(html).toContain("is 1 &lt; 2 &amp; 3 &gt; 2?");

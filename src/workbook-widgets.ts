@@ -31,6 +31,7 @@ import { parse } from "yaml";
 import { renderCheckScript, renderCheckStyles } from "./answer-check.js";
 import { FILL_THE_SIGNATURE, FILL_THE_SIGNATURE_COMPONENT } from "./fill-the-signature.js";
 import { escapeText } from "./html-escape.js";
+import { withoutFenceContent } from "./lesson-markdown.js";
 import { PARSONS_PROBLEM, PARSONS_PROBLEM_COMPONENT, renderParsonsScript, renderParsonsStyles } from "./parsons-problem.js";
 import { PREDICT_THEN_REVEAL, PREDICT_THEN_REVEAL_COMPONENT } from "./predict-then-reveal.js";
 import { TRACE_STEPPER, TRACE_STEPPER_COMPONENT, renderTraceScript, renderTraceStyles } from "./trace-stepper.js";
@@ -70,6 +71,12 @@ export interface WidgetComponent {
      * shown as code. Every other field is still checked.
      */
     codeFields?: readonly string[];
+    /**
+     * The data fields that are lesson markdown, as dotted paths like `codeFields`. The markup check
+     * reads them as it reads lesson prose: the content of a fenced block is skipped, because the
+     * component renders it escaped as code, and the rest of the field is still checked.
+     */
+    markdownFields?: readonly string[];
     /**
      * Why this declaration cannot make the exercise, or null when it can. A problem fails the whole
      * render: an exercise with a hole in its expected answer tells every learner they are wrong.
@@ -122,20 +129,24 @@ export function parseDeclaration(lesson: string, content: string): WidgetDeclara
     };
 }
 
-/** Remove every value a dotted path names from a copy of the data, leaving everything else. */
-function withoutPath(value: unknown, path: readonly string[]): unknown {
-    if (path.length === 0) return undefined;
+/**
+ * Replace every value a dotted path names in a copy of the data, leaving everything else. A value
+ * replaced with undefined is removed.
+ */
+function mapPath(value: unknown, path: readonly string[], replace: (found: unknown) => unknown): unknown {
+    if (path.length === 0) return replace(value);
     if (typeof value !== "object" || value === null) return value;
     const [head, ...rest] = path;
     if (Array.isArray(value)) {
         if (head !== "*" && !/^\d+$/.test(head)) return value;
-        return value.map((item, index) => (head === "*" || String(index) === head ? withoutPath(item, rest) : item));
+        return value.map((item, index) => (head === "*" || String(index) === head ? mapPath(item, rest, replace) : item));
     }
     const copy: Record<string, unknown> = { ...(value as Record<string, unknown>) };
     for (const key of Object.keys(copy)) {
         if (head === "*" || key === head) {
-            if (rest.length === 0) delete copy[key];
-            else copy[key] = withoutPath(copy[key], rest);
+            const mapped: unknown = mapPath(copy[key], rest, replace);
+            if (mapped === undefined) delete copy[key];
+            else copy[key] = mapped;
         }
     }
     return copy;
@@ -158,7 +169,8 @@ function scalarsOf(value: unknown, into: string[]): string[] {
 
 /**
  * The part of a widget declaration the renderer's markup check reads: the whole declaration, minus
- * the values of the fields its component declares as code. A declaration that does not parse, or
+ * the values of the fields its component declares as code and the fenced code inside the fields
+ * it declares as markdown. A declaration that does not parse, or
  * names a component the library does not hold, is read whole — the seam refuses it later anyway.
  */
 export function declarationMarkupText(content: string, registry: WidgetRegistry = WIDGET_MANIFEST): string {
@@ -172,9 +184,14 @@ export function declarationMarkupText(content: string, registry: WidgetRegistry 
     const record: Record<string, unknown> = doc as Record<string, unknown>;
     const name: unknown = record["component"];
     const component: WidgetComponent | undefined = typeof name === "string" ? registry[name.trim()] : undefined;
-    if (component?.codeFields === undefined || component.codeFields.length === 0) return content;
+    const codeFields: readonly string[] = component?.codeFields ?? [];
+    const markdownFields: readonly string[] = component?.markdownFields ?? [];
+    if (codeFields.length === 0 && markdownFields.length === 0) return content;
     let data: unknown = record["data"];
-    for (const field of component.codeFields) data = withoutPath(data, field.split("."));
+    for (const field of codeFields) data = mapPath(data, field.split("."), () => undefined);
+    for (const field of markdownFields) {
+        data = mapPath(data, field.split("."), (found) => (typeof found === "string" ? withoutFenceContent(found) : found));
+    }
     return scalarsOf({ ...record, data }, []).join("\n");
 }
 
