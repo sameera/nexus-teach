@@ -61,6 +61,30 @@ describe("predict-then-reveal is the first component in the shared library", () 
         expect(printed.shows("whitespace normalized")).toBe(true);
     });
 
+    it("renders the question and the answer as lesson markdown, so a fenced block becomes a code block", () => {
+        const declaration: string = [
+            "component: predict-then-reveal",
+            "data:",
+            '  question: "Suppose you run:\\n\\n```bash\\ncargo add --dev uuid\\n```\\n\\nWhat does `cargo build` do?\\n"',
+            '  answer: "It fails.\\n\\nThe crate is under `[dev-dependencies]`.\\n"',
+        ].join("\n");
+        const file = renderWorkbook({
+            lessons: [lessonWith(declaration)],
+            widgets: { [PREDICT_THEN_REVEAL_COMPONENT]: PREDICT_THEN_REVEAL },
+        }).find((f) => f.name === "the-drift-check.html")!.contents;
+        expect(file).toContain("<pre><code>cargo add --dev uuid\n</code></pre>");
+        expect(file).toContain("<p>What does <code>cargo build</code> do?</p>");
+        expect(file).toContain("<p>It fails.</p>");
+        expect(file).toContain("<p>The crate is under <code>[dev-dependencies]</code>.</p>");
+        expect(file).not.toContain("```");
+    });
+
+    it("escapes the question and the answer while rendering them", () => {
+        const html: string = PREDICT_THEN_REVEAL.lead!({ question: "is 1 < 2 & 3 > 2?" });
+        expect(html).toContain("is 1 &lt; 2 &amp; 3 &gt; 2?");
+        expect(PREDICT_THEN_REVEAL.render({ answer: "`a<b>`" })).toContain("<code>a&lt;b&gt;</code>");
+    });
+
     it("persists nothing about the learner: the same declaration renders the same page every time", () => {
         const first = pageFor();
         const second = pageFor();
