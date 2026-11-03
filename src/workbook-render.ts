@@ -45,6 +45,9 @@ import {
  */
 export const HOME_PAGE_NAME: string = "index.html";
 
+/** The home page's title, which the navigation also names it by. */
+export const HOME_PAGE_TITLE: string = "The plan";
+
 /** The stylesheet written once per workbook and referenced by every page. */
 export const STYLESHEET_NAME: string = "workbook.css";
 
@@ -299,11 +302,17 @@ export function renderProvenanceNote(lesson: Lesson): string {
  * as a link to a page (epic #407, invariant 2) — under just-in-time writing every slice past the
  * frontier is a stub, and a link to a page that does not exist is a dead end. It is chrome, so
  * printing drops it.
+ *
+ * It is a left sidebar the reader can collapse. The collapse is a disclosure element, so it works
+ * with no script; the workbook's script only starts it collapsed on a narrow screen. Every page is
+ * rendered again whenever a lesson is added, so the sidebar always lists every written lesson.
+ * When the workbook has a home page, the sidebar leads with a link to it.
  */
 export function renderNav(
     pages: readonly { page: string; title: string }[],
     current: string,
     stubs: readonly string[] = [],
+    home: boolean = false,
 ): string {
     const items: string[] = pages.map(({ page, title }) =>
         page === current
@@ -313,7 +322,40 @@ export function renderNav(
     const notYet: string[] = stubs.map(
         (label) => `<li class="lesson-stub">${escapeText(label)} — not yet written</li>`,
     );
-    return ['<nav class="workbook-nav" aria-label="Lessons">', "<ol>", ...items, ...notYet, "</ol>", "</nav>"].join("\n");
+    const homeLink: string[] = !home
+        ? []
+        : [
+              current === HOME_PAGE_NAME
+                  ? `<span class="workbook-nav-home" aria-current="page">${HOME_PAGE_TITLE}</span>`
+                  : `<a class="workbook-nav-home" href="./${HOME_PAGE_NAME}">${HOME_PAGE_TITLE}</a>`,
+          ];
+    return [
+        '<nav class="workbook-nav" aria-label="Lessons">',
+        '<details class="workbook-nav-panel" open>',
+        '<summary class="workbook-nav-toggle">Lessons</summary>',
+        ...homeLink,
+        "<ol>",
+        ...items,
+        ...notYet,
+        "</ol>",
+        "</details>",
+        "</nav>",
+    ].join("\n");
+}
+
+/**
+ * The navigation's one behaviour: on a narrow screen the sidebar sits above the lesson, so it
+ * starts collapsed there and the lesson is the first thing the reader sees. Nothing is kept.
+ */
+export function renderNavScript(): string {
+    return [
+        "(function () {",
+        "    var panel = document.querySelector('.workbook-nav-panel');",
+        "    if (panel === null || typeof window.matchMedia !== 'function') return;",
+        "    if (window.matchMedia('(max-width: 56rem)').matches) panel.removeAttribute('open');",
+        "})();",
+        "",
+    ].join("\n");
 }
 
 /**
@@ -368,12 +410,54 @@ export function renderStylesheet(): string {
         "    color: var(--c-ink-faint);",
         "    font-size: 0.85rem;",
         "}",
+        "/* The navigation is a sidebar the reader collapses. On a narrow screen it sits above the",
+        " * lesson; on a wide one it is a column on the left that stays in view while the lesson",
+        " * scrolls, and collapses to a thin strip holding only its toggle. */",
         ".workbook-nav {",
         "    border-bottom: 1px solid var(--c-line);",
-        "    padding: 0.5rem 1.5rem;",
+        "    padding: 0.75rem 1.5rem;",
+        "    font-size: 0.9rem;",
         "}",
-        ".workbook-nav ol { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0; padding: 0; list-style: none; }",
-        ".workbook-nav a { color: var(--c-accent); }",
+        ".workbook-nav-toggle {",
+        "    cursor: pointer;",
+        "    font-weight: bold;",
+        "    color: var(--c-ink-dim);",
+        "    white-space: nowrap;",
+        "}",
+        ".workbook-nav-home { display: block; margin: 0.75rem 0 0; font-weight: bold; }",
+        ".workbook-nav ol { margin: 0.75rem 0 0; padding: 0 0 0 1.5rem; }",
+        ".workbook-nav li { margin: 0.35rem 0; line-height: 1.35; }",
+        ".workbook-nav [aria-current=\"page\"] { font-weight: bold; color: var(--c-ink); }",
+        ".workbook-nav .lesson-stub { color: var(--c-ink-faint); }",
+        ".workbook-nav a { color: var(--c-accent); text-decoration: none; }",
+        ".workbook-nav a:hover { text-decoration: underline; }",
+        "@media screen and (min-width: 56rem) {",
+        "    body {",
+        "        display: grid;",
+        "        grid-template-columns: auto minmax(0, 1fr);",
+        "        grid-template-rows: auto auto auto 1fr;",
+        "        min-height: 100vh;",
+        "    }",
+        "    body > * { grid-column: 2; }",
+        "    .workbook-nav {",
+        "        grid-column: 1;",
+        "        grid-row: 1 / -1;",
+        "        align-self: start;",
+        "        position: sticky;",
+        "        top: 0;",
+        "        box-sizing: border-box;",
+        "        height: 100vh;",
+        "        overflow-y: auto;",
+        "        border-bottom: 0;",
+        "        border-right: 1px solid var(--c-line);",
+        "        padding: 1.5rem 1rem;",
+        "    }",
+        "    .workbook-nav-panel[open] { width: 16rem; }",
+        "    .workbook-nav-panel:not([open]) > .workbook-nav-toggle {",
+        "        writing-mode: vertical-rl;",
+        "        list-style: none;",
+        "    }",
+        "}",
         "",
         "/* Print is ink on white whatever the screen theme is — a dark reading surface printed is",
         " * unreadable, which fails the paper criterion outright — and navigation chrome does not go",
@@ -470,11 +554,12 @@ function renderHomeEntry(entry: HomeEntry): string {
  * live issue state — and it prints exactly as it appears, so its content exists at render time and
  * needs no layout computed when it opens (invariants 41, 42, 48).
  */
-function renderHome(entries: readonly HomeEntry[]): RenderedFile {
+function renderHome(entries: readonly HomeEntry[], nav: string): RenderedFile {
     return {
         name: HOME_PAGE_NAME,
         contents: renderPageShell({
-            title: "The plan",
+            title: HOME_PAGE_TITLE,
+            nav,
             provenance: [
                 "<!--",
                 "  This page is generated. Do not edit it.",
@@ -578,6 +663,7 @@ export function renderWorkbook(options: RenderOptions): RenderedFile[] {
         page: pageNameFor(l.file),
         title: l.title,
     }));
+    const navFor = (current: string): string => renderNav(plan, current, options.stubs ?? [], options.home !== undefined);
     const pages: RenderedFile[] = [];
     for (const lesson of lessons) {
         const page: string = pageNameFor(lesson.file);
@@ -586,7 +672,7 @@ export function renderWorkbook(options: RenderOptions): RenderedFile[] {
             contents: renderPageShell({
                 title: lesson.title,
                 provenance: renderProvenance(lesson),
-                nav: renderNav(plan, page, options.stubs ?? []),
+                nav: navFor(page),
                 content: withReferenceLink(
                     renderMarkdown(lesson.body, options.blockHook ?? makeWidgetSeam(lesson.file, options.widgets)),
                     lesson,
@@ -608,17 +694,17 @@ export function renderWorkbook(options: RenderOptions): RenderedFile[] {
             contents: renderPageShell({
                 title: source.title,
                 provenance: renderProvenance(source),
-                nav: renderNav(plan, "", options.stubs ?? []),
+                nav: navFor(""),
                 content: renderMarkdown(reference.body, options.blockHook ?? makeWidgetSeam(reference.file, options.widgets)),
                 trail: renderProvenanceNote(source),
                 scripts: `<script src="./${SCRIPT_NAME}"></script>`,
             }),
         });
     }
-    if (options.home !== undefined) pages.push(renderHome(options.home));
+    if (options.home !== undefined) pages.push(renderHome(options.home, navFor(HOME_PAGE_NAME)));
     const assets: RenderedFile[] = [
         { name: STYLESHEET_NAME, contents: renderStylesheet() },
-        { name: SCRIPT_NAME, contents: renderScript() },
+        { name: SCRIPT_NAME, contents: [renderScript(), renderNavScript()].join("\n") },
         ...(options.sharedAssets ?? []),
     ];
     return [...pages, ...assets].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));

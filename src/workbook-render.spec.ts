@@ -194,6 +194,42 @@ describe("two lessons authored months apart come out identical but for their pro
     });
 });
 
+describe("the navigation is a collapsible sidebar every page shares", () => {
+    const home = [{ id: "s1", label: "Story #1", kind: "story" as const, page: "a.html", dependsOn: [] }];
+
+    it("can be collapsed by the reader, and starts open", () => {
+        const files = renderWorkbook({ lessons: [lesson("a.md", "A", "prose")] });
+        const doc = new DOMParser().parseFromString(pageOf(files, "a.html"), "text/html");
+
+        const panel = doc.querySelector("nav details");
+        expect(panel?.hasAttribute("open")).toBe(true);
+        expect(panel?.querySelector("summary")?.textContent).toBe("Lessons");
+    });
+
+    it("lists a lesson added later on every page, the earlier ones included", () => {
+        const before = renderWorkbook({ lessons: [lesson("a.md", "A", "prose")] });
+        const after = renderWorkbook({ lessons: [lesson("a.md", "A", "prose"), lesson("b.md", "B", "prose")] });
+
+        expect(readPage(pageOf(before, "a.html")).navigation).toEqual(["A"]);
+        expect(readPage(pageOf(after, "a.html")).navigation).toEqual(["A", "B"]);
+    });
+
+    it("leads with a link to the home page, and the home page carries the same sidebar", () => {
+        const files = renderWorkbook({ lessons: [lesson("a.md", "A", "prose")], home });
+
+        expect(readPage(pageOf(files, "a.html")).links).toContainEqual({ label: "The plan", href: "./index.html" });
+        const homePage = readPage(pageOf(files, "index.html"));
+        expect(homePage.navigation).toEqual(["A"]);
+        expect(homePage.links.filter((l) => l.href === "./index.html")).toEqual([]);
+    });
+
+    it("offers no home link on a workbook with no home page", () => {
+        const files = renderWorkbook({ lessons: [lesson("a.md", "A", "prose")] });
+
+        expect(readPage(pageOf(files, "a.html")).links.map((l) => l.label)).not.toContain("The plan");
+    });
+});
+
 describe("the workbook declares no colour or typography of its own", () => {
     it("resolves every value from the shared reading-surface definition", () => {
         const css = renderStylesheet();
